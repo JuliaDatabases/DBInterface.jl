@@ -68,9 +68,7 @@ module DBI
         error("DBI API not fully implemented")
     end
 
-    function executed(stmt::StatementHandle)
-        error("DBI API not fully implemented")
-    end
+    executed(stmt::StatementHandle) = stmt.executed
 
     function fetchall(stmt::StatementHandle)
         error("DBI API not fully implemented")
