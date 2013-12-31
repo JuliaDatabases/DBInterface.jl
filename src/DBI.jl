@@ -69,7 +69,10 @@ module DBI
     end
 
     function Base.run(db::DatabaseHandle, sql::String)
-        error("DBI API not fully implemented")
+        stmt = prepare(db, sql)
+        execute(stmt)
+        finish(stmt)
+        return
     end
 
     function Base.show(io::IO, col::DatabaseColumn)
@@ -106,5 +109,13 @@ module DBI
 
     function tableinfo(db::DatabaseHandle, table::String)
         error("DBI API not fully implemented")
+    end
+
+    function Base.select(db::DatabaseHandle, sql::String)
+        stmt = prepare(db, sql)
+        execute(stmt)
+        df = fetchdf(stmt)
+        finish(stmt)
+        return df
     end
 end

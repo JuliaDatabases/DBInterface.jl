@@ -1,25 +1,311 @@
 DBI.jl
 ======
 
-The DBI package is meant to provide a database-independent API that all database drivers can be expected to comply with. This makes it easy to write code that can be easily ported between different databases. The inspiration for this comes from the classic Perl DBI module, which has a nice tutorial at [http://www.perl.com/pub/1999/10/DBI.html](http://www.perl.com/pub/1999/10/DBI.html).
+The DBI package is meant to provide a database-independent API that all database drivers can be expected to comply with. This makes it easy to write code that can be easily ported between different databases. The inspiration for this package comes from the classic Perl DBI module, which has a nice tutorial at [http://www.perl.com/pub/1999/10/DBI.html](http://www.perl.com/pub/1999/10/DBI.html) and more comprehensive documentation at [http://search.cpan.org/~timb/DBI-1.630/DBI.pm](http://search.cpan.org/~timb/DBI-1.630/DBI.pm).
 
-The current draft API is described below:
+The current draft API is summarized below and then described in greater detail.
 
-* Types
-    * DatabaseSystem: ODBC, SQLite, ...
-    * DatabaseHandle: Connection to a database
-    * StatementHandle: 
-* Functions
-    * columninfo: Get basic information about column:
-        * Type: INT, VARCHAR, ...
-        * Nullable: true, false
-        * Autoincrement: true, false
-        * Primary key: true, false
-    * connect/disconnect: Set up and shut down connections to database
-    * prepare: Let the database prepare, but not execute, a SQL statement
-    * execute: Execute a SQL statement, potentially with per-call bindings
-    * fetchall: Fetch all rows as an array of arrays
-    * fetchrow: Fetch a row as an Array{Any}
-    * finish: Finalize a SQL statement's execution
-    * sqlescape: Escape a SQL statement to prevent injections
-    * tableinfo: Get metdata about a table
+# Types
+
+* `DatabaseSystem`: This represents a specific type of database, like:
+    * `ODBC`
+    * `SQLite3`
+    * `MySQL`
+* `DatabaseHandle`: This represents an established connection to a database
+* `StatementHandle`: This represents a prepared SQL statement ready for execution in the database
+* `DatabaseTable`: Metadata about a database table and its columns
+* `DatabaseColumn`: Metadata about a database column
+
+# Functions
+
+* `columninfo`: Get basic information about a specific column in a table
+* `connect`/`disconnect`: Set up and shut down connections to database
+* `execute`: Execute a SQL statement with optional per-call variable bindings
+* `fetchall`: Fetch all rows as an array of arrays
+* `fetchrow`: Fetch all rows as a DataFrame
+* `fetchrow`: Fetch a row as an Array{Any}
+* `finish`: Finalize a SQL statement's execution
+* `prepare`: Ask the database to prepare, but not execute, a SQL statement
+* `run`: Run a non-`SELECT` SQL statement
+* `sqlescape`: Escape a SQL statement to prevent injections
+* `sql2jltype`: Convert a SQL type into a Julia `DataType`
+* `select`: Combine a call to `prepare`, `execute`, `fetchdf` and `finish` to produce a DataFrame based on a `SELECT` SQL statement
+* `tableinfo`: Get metadata about a table
+
+# Extended Usage Example
+
+In this example, we demonstrate how the DBI interface is used with
+SQLite3. Changing the database type in the call to `connect` should be
+sufficient to make this example work with other databases.
+
+    using DBI
+    using SQLite
+
+    db = connect(SQLite3, "users.sqlite3")
+
+    stmt = prepare(db, "CREATE TABLE users (id INT NOT NULL, name VARCHAR(255))")
+    execute(stmt)
+    finish(stmt)
+
+    stmt = prepare(db, "INSERT INTO users VALUES (1, 'Jeff Bezanson')")
+    execute(stmt)
+    finish(stmt)
+
+    stmt = prepare(db, "INSERT INTO users VALUES (2, 'Viral Shah')")
+    execute(stmt)
+    finish(stmt)
+
+    run(db, "INSERT INTO users VALUES (3, 'Stefan Karpinski')")
+
+    stmt = prepare(db, "SELECT * FROM users")
+    execute(stmt)
+    row = fetchrow(stmt)
+    row = fetchrow(stmt)
+    row = fetchrow(stmt)
+    row = fetchrow(stmt)
+    finish(stmt)
+
+    stmt = prepare(db, "SELECT * FROM users")
+    execute(stmt)
+    rows = fetchall(stmt)
+    finish(stmt)
+
+    stmt = prepare(db, "SELECT * FROM users")
+    execute(stmt)
+    rows = fetchdf(stmt)
+    finish(stmt)
+
+    df = select(db, "SELECT * FROM users")
+
+    tabledata = tableinfo(db, "users")
+
+    columndata = columninfo(db, "users", "id")
+
+    stmt = prepare(db, "DROP TABLE users")
+    execute(stmt)
+    finish(stmt)
+
+    disconnect(db)
+
+# Type Reference
+
+## DatabaseSystem
+
+An abstract type that represents a specific database type like `SQLite3` or `MySQL`.
+
+## DatabaseHandle
+
+An abstract type that represents a connection to a database. Every statement must contain the following field(s):
+
+* `status`: The most recent recent code reported by the database
+
+## StatementHandle
+
+An abstract type that represents a prepared SQL statement ready for execution. Every statement must contain the following field(s):
+
+* `db`: The database against which the statement was prepared
+
+## DatabaseTable
+
+Represents metadata about a table.
+
+* `name::UTF8String`: The name of the table
+* `columns::Vector{DatabaseColumn}`: Metadata about each column of the table as a `DatabaseColumn` object
+
+## DatabaseColumn
+
+Represents metadata about one column in a table.
+
+* `name::UTF8String`: The column's name
+* `datatype::DataType`: The column's Julia type
+* `length::Int`: The column's length if it is a `VARCHAR` column
+* `collation::UTF8String`: The column's collation rule
+* `nullable::Bool`: Can the column contain `NULL`?
+* `primarykey::Bool`: Is the column part of a primary key?
+* `autoincrement::Bool`: Is the column set to autoincrement on insertion?
+
+# Function Reference
+
+## `columninfo(db::DatabaseHandle, table::String, column::String) -> DatabaseColumn`
+
+Get basic information about a specific column in a table in the form of a `DatabaseColumn` type.
+
+### Usage Example
+
+    using DBI
+    using SQLite
+
+    db = connect(SQLite3, "db.sqlite3")
+    coldata = columninfo(db, "users", "id")
+
+## `connect(::Type{DatabaseSystem}, args::Any...) -> DatabaseHandle`
+
+Set up a connection to a database by specifying the type of database and
+any information required to make the connection. Different databases expect
+substantially different types of information.
+
+### Usage Example
+
+    using DBI
+    using SQLite
+
+    db = connect(SQLite3, "db.sqlite3")
+
+## `disconnect(db::DatabaseHandle) -> Nothing`
+
+Shut down a connection to a database safely.
+
+### Usage Example
+
+    using DBI
+    using SQLite
+
+    db = connect(SQLite3, "db.sqlite3")
+    disconnect(db)
+
+## `execute(stmt::StatementHandle) -> Nothing`
+
+Execute a SQL statement with optional per-call variable bindings, which were indicated using `?` in the SQL statement at the time of a call to `prepare()`.
+
+*Note that every call to `execute(stmt)` updates the status of `stmt.db.status`, which can be checked for information about the success or failure of the most recent attempt at execution of the statement.*
+
+### Usage Example
+
+    using DBI
+    using SQLite
+
+    db = connect(SQLite3, "db.sqlite3")
+    stmt = prepare(db, "SELECT * FROM users")
+    execute(stmt)
+
+## `fetchall(stmt::StatementHandle) -> Vector{Vector{Any}}`
+
+Fetch all rows returned by a statement as an `Vector{Vector{Any}}`.
+
+### Usage Example
+
+    using DBI
+    using SQLite
+
+    db = connect(SQLite3, "db.sqlite3")
+    stmt = prepare(db, "SELECT * FROM users")
+    execute(stmt)
+    rows = fetchall(stmt)
+
+## `fetchdf(stmt::StatementHandle) -> DataFrame`
+
+Fetch all rows returned by a statement as a `DataFrame`.
+
+### Usage Example
+
+    using DBI
+    using SQLite
+
+    db = connect(SQLite3, "db.sqlite3")
+    stmt = prepare(db, "SELECT * FROM users")
+    execute(stmt)
+    df = fetchdf(stmt)
+
+## `fetchrow(stmt::StatementHandle) -> Vector{Any}`
+
+Fetch the current row returned by execution of a statement as an `Vector{Any}`.
+
+### Usage Example
+
+    using DBI
+    using SQLite
+
+    db = connect(SQLite3, "db.sqlite3")
+    stmt = prepare(db, "SELECT * FROM users")
+    execute(stmt)
+    row = fetchrow(stmt)
+
+## `finish(stmt::StatementHandle) -> Nothing`
+
+Finalize a SQL statement's execution.
+
+### Usage Example
+
+    using DBI
+    using SQLite
+
+    db = connect(SQLite3, "db.sqlite3")
+    stmt = prepare(db, "SELECT * FROM users")
+    execute(stmt)
+    row = fetchrow(stmt)
+    finish(stmt)
+
+## `prepare(db::DatabaseHandle, sql::String) -> StatementHandle`
+
+Ask the database to prepare, but not execute, a SQL statement.
+
+### Usage Example
+
+    using DBI
+    using SQLite
+
+    db = connect(SQLite3, "db.sqlite3")
+    stmt = prepare(db, "SELECT * FROM users")
+
+## `run(db::DatabaseHandle, sql::String) -> Nothing`
+
+Combine a call to `prepare`, `execute` and `finish` to run a non-`SELECT` SQL statement.
+
+### Usage Example
+
+    using DBI
+    using SQLite
+
+    db = connect(SQLite3, "db.sqlite3")
+    run(db, "DROP TABLE users")
+
+## `sqlescape(sql::String) -> UTF8String`
+
+Escape a SQL statement to prevent SQL injections.
+
+**This function is not yet implemented.**
+
+### Usage Example
+
+    using DBI
+    safesql = sqlescape("SELECT * FROM users WHERE id = `a`)
+
+## `sql2jltype(typestring::String) -> DataType`
+
+Convert a SQL type into a Julia `DataType`.
+
+### Usage Example
+
+    using DBI
+    T = sql2jltype("VARCHAR(255)")
+    @assert T == UTF8String
+
+## `select(db::DatabaseHandle, sql::String) -> DataFrame`
+
+Combine a call to `prepare`, `execute`, `fetchdf` and `finish` to produce a DataFrame based on a `SELECT` SQL statement
+
+### Usage Example
+
+    using DBI
+    using SQLite
+
+    db = connect(SQLite3, "db.sqlite3")
+    df = select(db, "SELECT * FROM users")
+
+## `tableinfo(db::DatabaseTable, table::String) -> DatabaseTable`
+
+Get metadata about a specific table in a database in the form of a `DatabaseTable` type.
+
+### Usage Example
+
+    using DBI
+    using SQLite
+
+    db = connect(SQLite3, "db.sqlite3")
+    tabledata = tableinfo(db, "users")
+
+# Coming Soon
+
+* Implement `sqlescape()`
+* Cross-database error and status reporting
+* More convenience wrappers that combine primitives into simpler abstractions like `run` and `select`
