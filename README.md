@@ -20,11 +20,15 @@ The current draft API is summarized below and then described in greater detail.
 
 * `columninfo`: Get basic information about a specific column in a table
 * `connect`/`disconnect`: Set up and shut down connections to database
+* `errcode`: Get the native error code for the database
+* `errstring`: Get the native error string for the database
 * `execute`: Execute a SQL statement with optional per-call variable bindings
+* `executed`: How many times has this statement been executed
 * `fetchall`: Fetch all rows as an array of arrays
 * `fetchrow`: Fetch all rows as a DataFrame
 * `fetchrow`: Fetch a row as an Array{Any}
 * `finish`: Finalize a SQL statement's execution
+* `lastinsertid`: What was the row ID of the last row inserted into a table
 * `prepare`: Ask the database to prepare, but not execute, a SQL statement
 * `run`: Run a non-`SELECT` SQL statement
 * `sqlescape`: Escape a SQL statement to prevent injections
@@ -89,30 +93,39 @@ sufficient to make this example work with other databases.
 
 # Type Reference
 
-## DatabaseSystem
+**`DatabaseSystem`**
 
 An abstract type that represents a specific database type like `SQLite3` or `MySQL`.
 
-## DatabaseHandle
+---
+
+**`DatabaseHandle`**
 
 An abstract type that represents a connection to a database. Every statement must contain the following field(s):
 
 * `status`: The most recent recent code reported by the database
 
-## StatementHandle
+---
+
+**`StatementHandle`**
 
 An abstract type that represents a prepared SQL statement ready for execution. Every statement must contain the following field(s):
 
 * `db`: The database against which the statement was prepared
+* `executed`: The number of times the statement has been executed
 
-## DatabaseTable
+---
+
+**`DatabaseTable`**
 
 Represents metadata about a table.
 
 * `name::UTF8String`: The name of the table
 * `columns::Vector{DatabaseColumn}`: Metadata about each column of the table as a `DatabaseColumn` object
 
-## DatabaseColumn
+---
+
+**`DatabaseColumn`**
 
 Represents metadata about one column in a table.
 
@@ -126,11 +139,11 @@ Represents metadata about one column in a table.
 
 # Function Reference
 
-## `columninfo(db::DatabaseHandle, table::String, column::String) -> DatabaseColumn`
+**`columninfo(db::DatabaseHandle, table::String, column::String) -> DatabaseColumn`**
 
 Get basic information about a specific column in a table in the form of a `DatabaseColumn` type.
 
-### Usage Example
+**Usage example**
 
     using DBI
     using SQLite
@@ -138,24 +151,28 @@ Get basic information about a specific column in a table in the form of a `Datab
     db = connect(SQLite3, "db.sqlite3")
     coldata = columninfo(db, "users", "id")
 
-## `connect(::Type{DatabaseSystem}, args::Any...) -> DatabaseHandle`
+---
+
+**`connect(::Type{DatabaseSystem}, args::Any...) -> DatabaseHandle`**
 
 Set up a connection to a database by specifying the type of database and
 any information required to make the connection. Different databases expect
 substantially different types of information.
 
-### Usage Example
+**Usage example**
 
     using DBI
     using SQLite
 
     db = connect(SQLite3, "db.sqlite3")
 
-## `disconnect(db::DatabaseHandle) -> Nothing`
+---
+
+**`disconnect(db::DatabaseHandle) -> Nothing`**
 
 Shut down a connection to a database safely.
 
-### Usage Example
+**Usage example**
 
     using DBI
     using SQLite
@@ -163,13 +180,47 @@ Shut down a connection to a database safely.
     db = connect(SQLite3, "db.sqlite3")
     disconnect(db)
 
-## `execute(stmt::StatementHandle) -> Nothing`
+---
+
+**`errcode(db::DatabaseHandle) -> Cint`**
+
+Get the native error code for the database.
+
+**Usage example**
+
+    using DBI
+    using SQLite
+
+    db = connect(SQLite3, "db.sqlite3")
+    stmt = prepare(db, "SELECT * FROM users")
+    errcode(db)
+    disconnect(db)
+
+---
+
+**`errstring(db::DatabaseHandle) -> UTF8String` -**
+
+Get the native error string for the database.
+
+**Usage example**
+
+    using DBI
+    using SQLite
+
+    db = connect(SQLite3, "db.sqlite3")
+    stmt = prepare(db, "SELECT * FROM users")
+    errstring(db)
+    disconnect(db)
+
+---
+
+**`execute(stmt::StatementHandle) -> Nothing`**
 
 Execute a SQL statement with optional per-call variable bindings, which were indicated using `?` in the SQL statement at the time of a call to `prepare()`.
 
 *Note that every call to `execute(stmt)` updates the status of `stmt.db.status`, which can be checked for information about the success or failure of the most recent attempt at execution of the statement.*
 
-### Usage Example
+**Usage example**
 
     using DBI
     using SQLite
@@ -178,11 +229,30 @@ Execute a SQL statement with optional per-call variable bindings, which were ind
     stmt = prepare(db, "SELECT * FROM users")
     execute(stmt)
 
-## `fetchall(stmt::StatementHandle) -> Vector{Vector{Any}}`
+---
+
+**`executed(stmt::StatementHandle) -> Int`
+
+How many times has this statement been executed?
+
+**Usage example**
+
+    using DBI
+    using SQLite
+
+    db = connect(SQLite3, "db.sqlite3")
+    stmt = prepare(db, "SELECT * FROM users")
+    executed(stmt)
+    execute(stmt)
+    executed(stmt)
+
+---
+
+**`fetchall(stmt::StatementHandle) -> Vector{Vector{Any}}`**
 
 Fetch all rows returned by a statement as an `Vector{Vector{Any}}`.
 
-### Usage Example
+**Usage example**
 
     using DBI
     using SQLite
@@ -192,11 +262,13 @@ Fetch all rows returned by a statement as an `Vector{Vector{Any}}`.
     execute(stmt)
     rows = fetchall(stmt)
 
-## `fetchdf(stmt::StatementHandle) -> DataFrame`
+---
+
+**`fetchdf(stmt::StatementHandle) -> DataFrame`**
 
 Fetch all rows returned by a statement as a `DataFrame`.
 
-### Usage Example
+**Usage example**
 
     using DBI
     using SQLite
@@ -206,11 +278,13 @@ Fetch all rows returned by a statement as a `DataFrame`.
     execute(stmt)
     df = fetchdf(stmt)
 
-## `fetchrow(stmt::StatementHandle) -> Vector{Any}`
+---
+
+**`fetchrow(stmt::StatementHandle) -> Vector{Any}`**
 
 Fetch the current row returned by execution of a statement as an `Vector{Any}`.
 
-### Usage Example
+**Usage example**
 
     using DBI
     using SQLite
@@ -220,11 +294,13 @@ Fetch the current row returned by execution of a statement as an `Vector{Any}`.
     execute(stmt)
     row = fetchrow(stmt)
 
-## `finish(stmt::StatementHandle) -> Nothing`
+---
+
+**`finish(stmt::StatementHandle) -> Nothing`**
 
 Finalize a SQL statement's execution.
 
-### Usage Example
+**Usage example**
 
     using DBI
     using SQLite
@@ -235,11 +311,29 @@ Finalize a SQL statement's execution.
     row = fetchrow(stmt)
     finish(stmt)
 
-## `prepare(db::DatabaseHandle, sql::String) -> StatementHandle`
+---
+
+**`lastinsertid(db::DatabaseHandle, table::String) -> Int`
+
+Determine the row ID of the last row inserted into `table`.
+
+**Usage example**
+
+    using DBI
+    using SQLite
+
+    db = connect(SQLite3, "db.sqlite3")
+    stmt = prepare(db, "INSERT INTO users (name) VALUES ('foo')")
+    execute(stmt)
+    lastinsertid(db, "users")
+
+---
+
+**`prepare(db::DatabaseHandle, sql::String) -> StatementHandle`**
 
 Ask the database to prepare, but not execute, a SQL statement.
 
-### Usage Example
+**Usage example**
 
     using DBI
     using SQLite
@@ -247,11 +341,13 @@ Ask the database to prepare, but not execute, a SQL statement.
     db = connect(SQLite3, "db.sqlite3")
     stmt = prepare(db, "SELECT * FROM users")
 
-## `run(db::DatabaseHandle, sql::String) -> Nothing`
+---
+
+**`run(db::DatabaseHandle, sql::String) -> Nothing`**
 
 Combine a call to `prepare`, `execute` and `finish` to run a non-`SELECT` SQL statement.
 
-### Usage Example
+**Usage example**
 
     using DBI
     using SQLite
@@ -259,32 +355,38 @@ Combine a call to `prepare`, `execute` and `finish` to run a non-`SELECT` SQL st
     db = connect(SQLite3, "db.sqlite3")
     run(db, "DROP TABLE users")
 
-## `sqlescape(sql::String) -> UTF8String`
+---
+
+**`sqlescape(sql::String) -> UTF8String`**
 
 Escape a SQL statement to prevent SQL injections.
 
 **This function is not yet implemented.**
 
-### Usage Example
+**Usage example**
 
     using DBI
     safesql = sqlescape("SELECT * FROM users WHERE id = `a`)
 
-## `sql2jltype(typestring::String) -> DataType`
+---
+
+**`sql2jltype(typestring::String) -> DataType`**
 
 Convert a SQL type into a Julia `DataType`.
 
-### Usage Example
+**Usage example**
 
     using DBI
     T = sql2jltype("VARCHAR(255)")
     @assert T == UTF8String
 
-## `select(db::DatabaseHandle, sql::String) -> DataFrame`
+---
+
+**`select(db::DatabaseHandle, sql::String) -> DataFrame`**
 
 Combine a call to `prepare`, `execute`, `fetchdf` and `finish` to produce a DataFrame based on a `SELECT` SQL statement
 
-### Usage Example
+**Usage example**
 
     using DBI
     using SQLite
@@ -292,11 +394,13 @@ Combine a call to `prepare`, `execute`, `fetchdf` and `finish` to produce a Data
     db = connect(SQLite3, "db.sqlite3")
     df = select(db, "SELECT * FROM users")
 
-## `tableinfo(db::DatabaseTable, table::String) -> DatabaseTable`
+---
+
+**`tableinfo(db::DatabaseTable, table::String) -> DatabaseTable`**
 
 Get metadata about a specific table in a database in the form of a `DatabaseTable` type.
 
-### Usage Example
+**Usage example**
 
     using DBI
     using SQLite

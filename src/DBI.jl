@@ -4,11 +4,15 @@ module DBI
 
     export columninfo,
            disconnect,
+           errcode,
+           errstring,
            execute,
+           executed,
            fetchall,
            fetchdf,
            fetchrow,
            finish,
+           lastinsertid,
            prepare,
            sqlescape,
            sql2jltype,
@@ -44,7 +48,27 @@ module DBI
         error("DBI API not fully implemented")
     end
 
+    # Native error code
+    function errcode(db::DatabaseHandle)
+        error("DBI API not fully implemented")
+    end
+
+    # TODO: Need this? Redundancy sucks
+    # errcode(stmt::StatementHandle) = errcode(stmt.db)
+
+    # Native error string
+    function errstring(db::DatabaseHandle)
+        error("DBI API not fully implemented")
+    end
+
+    # TODO: Need this? Redundancy sucks
+    # errstring(stmt::StatementHandle) = errstring(stmt.db)
+
     function execute(stmt::StatementHandle)
+        error("DBI API not fully implemented")
+    end
+
+    function executed(stmt::StatementHandle)
         error("DBI API not fully implemented")
     end
 
@@ -61,6 +85,10 @@ module DBI
     end
 
     function finish(stmt::StatementHandle)
+        error("DBI API not fully implemented")
+    end
+
+    function lastinsertid(db::DatabaseHandle)
         error("DBI API not fully implemented")
     end
 
