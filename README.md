@@ -25,7 +25,7 @@ The current draft API is summarized below and then described in greater detail.
 * `execute`: Execute a SQL statement with optional per-call variable bindings
 * `executed`: How many times has this statement been executed
 * `fetchall`: Fetch all rows as an array of arrays
-* `fetchrow`: Fetch all rows as a DataFrame
+* `fetchdf`: Fetch all rows as a DataFrame
 * `fetchrow`: Fetch a row as an Array{Any}
 * `finish`: Finalize a SQL statement's execution
 * `lastinsertid`: What was the row ID of the last row inserted into a table
