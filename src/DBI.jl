@@ -40,7 +40,7 @@ module DBI
         error("DBI API not fully implemented")
     end
 
-    function Base.connect(db::DatabaseSystem, args::Any...)
+    function Base.connect{T<:DatabaseSystem}(::Type{T}, args::Any...)
         error("DBI API not fully implemented")
     end
 
