@@ -168,6 +168,24 @@ substantially different types of information.
 
 ---
 
+**`connect(f::Function, ::Type{DatabaseSystem}, args::Any...)`**
+
+Set up a connection to a database, apply the function f to the connection, and disconnect on return or error.
+
+**Usage example**
+
+    using DBI
+    using SQLite
+
+    connect(SQLite3, "db.sqlite3") do conn
+        println("Connected.")
+        error("Something went wrong.")
+    end
+
+    println("Disconnected.")
+
+---
+
 **`disconnect(db::DatabaseHandle) -> Nothing`**
 
 Shut down a connection to a database safely.
