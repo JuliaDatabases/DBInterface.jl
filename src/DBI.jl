@@ -31,6 +31,7 @@ module DBI
         primarykey::Bool
         autoincrement::Bool
     end
+
     immutable DatabaseTable
         name::UTF8String
         columns::Vector{DatabaseColumn}
@@ -44,7 +45,11 @@ module DBI
         error("DBI API not fully implemented")
     end
 
-    function Base.connect{T<:DatabaseSystem}(f::Function, ::Type{T}, args::Any...)
+    function Base.connect{T<:DatabaseSystem}(
+        f::Function,
+        ::Type{T},
+        args::Any...
+    )
         conn = connect(T, args...)
 
         try
