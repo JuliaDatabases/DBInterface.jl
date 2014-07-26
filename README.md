@@ -1,7 +1,13 @@
 DBI.jl
 ======
 
-The DBI package is meant to provide a database-independent API that all database drivers can be expected to comply with. This makes it easy to write code that can be easily ported between different databases. The inspiration for this package comes from the classic Perl DBI module, which has a nice tutorial at [http://www.perl.com/pub/1999/10/DBI.html](http://www.perl.com/pub/1999/10/DBI.html) and more comprehensive documentation at [http://search.cpan.org/~timb/DBI-1.630/DBI.pm](http://search.cpan.org/~timb/DBI-1.630/DBI.pm).
+The DBI package is meant to provide a database-independent API that all
+database drivers can be expected to comply with. This makes it easy to write
+code that can be easily ported between different databases. The inspiration for
+this package comes from the classic Perl DBI module, which has a nice tutorial
+at [http://www.perl.com/pub/1999/10/DBI.html](http://www.perl.com/pub/1999/10/DBI.html)
+and more comprehensive documentation at
+[http://search.cpan.org/~timb/DBI-1.630/DBI.pm](http://search.cpan.org/~timb/DBI-1.630/DBI.pm).
 
 The current draft API is summarized below and then described in greater detail.
 
@@ -12,7 +18,8 @@ The current draft API is summarized below and then described in greater detail.
     * `SQLite3`
     * `MySQL`
 * `DatabaseHandle`: This represents an established connection to a database
-* `StatementHandle`: This represents a prepared SQL statement ready for execution in the database
+* `StatementHandle`: This represents a prepared SQL statement ready for
+  execution in the database
 * `DatabaseTable`: Metadata about a database table and its columns
 * `DatabaseColumn`: Metadata about a database column
 
@@ -33,7 +40,8 @@ The current draft API is summarized below and then described in greater detail.
 * `run`: Run a non-`SELECT` SQL statement
 * `sqlescape`: Escape a SQL statement to prevent injections
 * `sql2jltype`: Convert a SQL type into a Julia `DataType`
-* `select`: Combine a call to `prepare`, `execute`, `fetchdf` and `finish` to produce a DataFrame based on a `SELECT` SQL statement
+* `select`: Combine a call to `prepare`, `execute`, `fetchdf` and `finish` to
+  produce a DataFrame based on a `SELECT` SQL statement
 * `tableinfo`: Get metadata about a table
 
 # Extended Usage Example
@@ -47,7 +55,9 @@ sufficient to make this example work with other databases.
 
     db = connect(SQLite3, "users.sqlite3")
 
-    stmt = prepare(db, "CREATE TABLE users (id INT NOT NULL, name VARCHAR(255))")
+    stmt = prepare(
+        db, "CREATE TABLE users (id INT NOT NULL, name VARCHAR(255))"
+    )
     execute(stmt)
     finish(stmt)
 
@@ -95,13 +105,15 @@ sufficient to make this example work with other databases.
 
 **`DatabaseSystem`**
 
-An abstract type that represents a specific database type like `SQLite3` or `MySQL`.
+An abstract type that represents a specific database type like `SQLite3` or
+`MySQL`.
 
 ---
 
 **`DatabaseHandle`**
 
-An abstract type that represents a connection to a database. Every statement must contain the following field(s):
+An abstract type that represents a connection to a database. Every statement
+must contain the following field(s):
 
 * `status`: The most recent recent code reported by the database
 
@@ -109,7 +121,8 @@ An abstract type that represents a connection to a database. Every statement mus
 
 **`StatementHandle`**
 
-An abstract type that represents a prepared SQL statement ready for execution. Every statement must contain the following field(s):
+An abstract type that represents a prepared SQL statement ready for execution.
+Every statement must contain the following field(s):
 
 * `db`: The database against which the statement was prepared
 * `executed`: The number of times the statement has been executed
@@ -121,7 +134,8 @@ An abstract type that represents a prepared SQL statement ready for execution. E
 Represents metadata about a table.
 
 * `name::UTF8String`: The name of the table
-* `columns::Vector{DatabaseColumn}`: Metadata about each column of the table as a `DatabaseColumn` object
+* `columns::Vector{DatabaseColumn}`: Metadata about each column of the table as
+  a `DatabaseColumn` object
 
 ---
 
@@ -141,7 +155,8 @@ Represents metadata about one column in a table.
 
 **`columninfo(db::DatabaseHandle, table::String, column::String) -> DatabaseColumn`**
 
-Get basic information about a specific column in a table in the form of a `DatabaseColumn` type.
+Get basic information about a specific column in a table in the form of a
+`DatabaseColumn` type.
 
 **Usage example**
 
@@ -170,7 +185,8 @@ substantially different types of information.
 
 **`connect(f::Function, ::Type{DatabaseSystem}, args::Any...)`**
 
-Set up a connection to a database, apply the function f to the connection, and disconnect on return or error.
+Set up a connection to a database, apply the function f to the connection, and
+disconnect on return or error.
 
 **Usage example**
 
@@ -234,9 +250,12 @@ Get the native error string for the database.
 
 **`execute(stmt::StatementHandle) -> Nothing`**
 
-Execute a SQL statement with optional per-call variable bindings, which were indicated using `?` in the SQL statement at the time of a call to `prepare()`.
+Execute a SQL statement with optional per-call variable bindings, which were
+indicated using `?` in the SQL statement at the time of a call to `prepare()`.
 
-*Note that every call to `execute(stmt)` updates the status of `stmt.db.status`, which can be checked for information about the success or failure of the most recent attempt at execution of the statement.*
+*Note that every call to `execute(stmt)` updates the status of
+`stmt.db.status`, which can be checked for information about the success or
+failure of the most recent attempt at execution of the statement.*
 
 **Usage example**
 
@@ -300,7 +319,7 @@ Fetch all rows returned by a statement as a `DataFrame`.
 
 **`fetchrow(stmt::StatementHandle) -> Vector{Any}`**
 
-Fetch the current row returned by execution of a statement as an `Vector{Any}`.
+Fetch the current row returned by execution of a statement as a `Vector{Any}`.
 
 **Usage example**
 
@@ -363,7 +382,8 @@ Ask the database to prepare, but not execute, a SQL statement.
 
 **`run(db::DatabaseHandle, sql::String) -> Nothing`**
 
-Combine a call to `prepare`, `execute` and `finish` to run a non-`SELECT` SQL statement.
+Combine a call to `prepare`, `execute` and `finish` to run a non-`SELECT` SQL
+statement.
 
 **Usage example**
 
@@ -402,7 +422,8 @@ Convert a SQL type into a Julia `DataType`.
 
 **`select(db::DatabaseHandle, sql::String) -> DataFrame`**
 
-Combine a call to `prepare`, `execute`, `fetchdf` and `finish` to produce a DataFrame based on a `SELECT` SQL statement
+Combine a call to `prepare`, `execute`, `fetchdf` and `finish` to produce a
+DataFrame based on a `SELECT` SQL statement.
 
 **Usage example**
 
@@ -416,7 +437,8 @@ Combine a call to `prepare`, `execute`, `fetchdf` and `finish` to produce a Data
 
 **`tableinfo(db::DatabaseTable, table::String) -> DatabaseTable`**
 
-Get metadata about a specific table in a database in the form of a `DatabaseTable` type.
+Get metadata about a specific table in a database in the form of a
+`DatabaseTable` type.
 
 **Usage example**
 
@@ -430,4 +452,5 @@ Get metadata about a specific table in a database in the form of a `DatabaseTabl
 
 * Implement `sqlescape()`
 * Cross-database error and status reporting
-* More convenience wrappers that combine primitives into simpler abstractions like `run` and `select`
+* More convenience wrappers that combine primitives into simpler abstractions
+  like `run` and `select`

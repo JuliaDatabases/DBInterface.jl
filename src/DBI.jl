@@ -1,6 +1,5 @@
 module DBI
-    using DataArrays
-    using DataFrames
+    using DataArrays, DataFrames
 
     export columninfo,
            disconnect,
@@ -41,11 +40,11 @@ module DBI
         error("DBI API not fully implemented")
     end
 
-    function Base.connect{T<:DatabaseSystem}(::Type{T}, args::Any...)
+    function Base.connect{T <: DatabaseSystem}(::Type{T}, args::Any...)
         error("DBI API not fully implemented")
     end
 
-    function Base.connect{T<:DatabaseSystem}(
+    function Base.connect{T <: DatabaseSystem}(
         f::Function,
         ::Type{T},
         args::Any...
@@ -59,51 +58,33 @@ module DBI
         end
     end
 
-    function disconnect(db::DatabaseHandle)
-        error("DBI API not fully implemented")
-    end
+    disconnect(db::DatabaseHandle) = error("DBI API not fully implemented")
 
     # Native error code
-    function errcode(db::DatabaseHandle)
-        error("DBI API not fully implemented")
-    end
+    errcode(db::DatabaseHandle) = error("DBI API not fully implemented")
 
     # TODO: Need this? Redundancy sucks
     # errcode(stmt::StatementHandle) = errcode(stmt.db)
 
     # Native error string
-    function errstring(db::DatabaseHandle)
-        error("DBI API not fully implemented")
-    end
+    errstring(db::DatabaseHandle) = error("DBI API not fully implemented")
 
     # TODO: Need this? Redundancy sucks
     # errstring(stmt::StatementHandle) = errstring(stmt.db)
 
-    function execute(stmt::StatementHandle)
-        error("DBI API not fully implemented")
-    end
+    execute(stmt::StatementHandle) = error("DBI API not fully implemented")
 
     executed(stmt::StatementHandle) = stmt.executed
 
-    function fetchall(stmt::StatementHandle)
-        error("DBI API not fully implemented")
-    end
+    fetchall(stmt::StatementHandle) = error("DBI API not fully implemented")
 
-    function fetchdf(stmt::StatementHandle)
-        error("DBI API not fully implemented")
-    end
+    fetchdf(stmt::StatementHandle) = error("DBI API not fully implemented")
 
-    function fetchrow(stmt::StatementHandle)
-        error("DBI API not fully implemented")
-    end
+    fetchrow(stmt::StatementHandle) = error("DBI API not fully implemented")
 
-    function finish(stmt::StatementHandle)
-        error("DBI API not fully implemented")
-    end
+    finish(stmt::StatementHandle) = error("DBI API not fully implemented")
 
-    function lastinsertid(db::DatabaseHandle)
-        error("DBI API not fully implemented")
-    end
+    lastinsertid(db::DatabaseHandle) = error("DBI API not fully implemented")
 
     function prepare(db::DatabaseHandle, sql::String)
         error("DBI API not fully implemented")
@@ -117,19 +98,17 @@ module DBI
     end
 
     function Base.show(io::IO, col::DatabaseColumn)
-        @printf io "Name: `%s`\n" col.name
-        @printf io "Type: %s\n" col.datatype
-        @printf io "Length: %d\n" col.length
-        @printf io "Collation: %s\n" col.collation
-        @printf io "Is Nullable: %s\n" col.nullable
-        @printf io "Is Primary Key: %s\n" col.primarykey
-        @printf io "Is Autoincrement: %s\n" col.autoincrement
+        @printf(io, "Name: `%s`\n", col.name)
+        @printf(io, "Type: %s\n", col.datatype)
+        @printf(io, "Length: %d\n", col.length)
+        @printf(io, "Collation: %s\n", col.collation)
+        @printf(io, "Is Nullable: %s\n", col.nullable)
+        @printf(io, "Is Primary Key: %s\n", col.primarykey)
+        @printf(io, "Is Autoincrement: %s\n", col.autoincrement)
         return
     end
 
-    function sqlescape(sql::String)
-        error("Not yet implemented")
-    end
+    sqlescape(sql::String) = error("Not yet implemented")
 
     function sql2jltype(t::String)
         if t == "INT"
