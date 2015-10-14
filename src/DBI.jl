@@ -37,7 +37,7 @@ module DBI
         columns::Vector{DatabaseColumn}
     end
 
-    function columninfo(db::DatabaseHandle, table::String, column::String)
+    function columninfo(db::DatabaseHandle, table::AbstractString, column::AbstractString)
         error("DBI API not fully implemented")
     end
 
@@ -105,11 +105,11 @@ module DBI
         error("DBI API not fully implemented")
     end
 
-    function prepare(db::DatabaseHandle, sql::String)
+    function prepare(db::DatabaseHandle, sql::AbstractString)
         error("DBI API not fully implemented")
     end
 
-    function Base.run(db::DatabaseHandle, sql::String)
+    function Base.run(db::DatabaseHandle, sql::AbstractString)
         stmt = prepare(db, sql)
         execute(stmt)
         finish(stmt)
@@ -127,11 +127,11 @@ module DBI
         return
     end
 
-    function sqlescape(sql::String)
+    function sqlescape(sql::AbstractString)
         error("Not yet implemented")
     end
 
-    function sql2jltype(t::String)
+    function sql2jltype(t::AbstractString)
         if t == "INT"
             return Int, 0
         elseif t == "REAL"
@@ -148,11 +148,11 @@ module DBI
         end
     end
 
-    function tableinfo(db::DatabaseHandle, table::String)
+    function tableinfo(db::DatabaseHandle, table::AbstractString)
         error("DBI API not fully implemented")
     end
 
-    function Base.select(db::DatabaseHandle, sql::String)
+    function Base.select(db::DatabaseHandle, sql::AbstractString)
         stmt = prepare(db, sql)
         execute(stmt)
         df = fetchdf(stmt)
