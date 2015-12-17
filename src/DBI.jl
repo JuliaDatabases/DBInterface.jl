@@ -18,6 +18,10 @@ module DBI
            sql2jltype,
            tableinfo
 
+    if !isdefined(:AbstractString)
+        const AbstractString = Base.String
+    end
+
     abstract DatabaseSystem
     abstract DatabaseHandle
     abstract StatementHandle
