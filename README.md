@@ -42,54 +42,56 @@ In this example, we demonstrate how the DBI interface is used with
 SQLite3. Changing the database type in the call to `connect` should be
 sufficient to make this example work with other databases.
 
-    using DBI
-    using SQLite
+```julia
+using DBI
+using SQLite
 
-    db = connect(SQLite3, "users.sqlite3")
+db = connect(SQLite3, "users.sqlite3")
 
-    stmt = prepare(db, "CREATE TABLE users (id INT NOT NULL, name VARCHAR(255))")
-    execute(stmt)
-    finish(stmt)
+stmt = prepare(db, "CREATE TABLE users (id INT NOT NULL, name VARCHAR(255))")
+execute(stmt)
+finish(stmt)
 
-    stmt = prepare(db, "INSERT INTO users VALUES (1, 'Jeff Bezanson')")
-    execute(stmt)
-    finish(stmt)
+stmt = prepare(db, "INSERT INTO users VALUES (1, 'Jeff Bezanson')")
+execute(stmt)
+finish(stmt)
 
-    stmt = prepare(db, "INSERT INTO users VALUES (2, 'Viral Shah')")
-    execute(stmt)
-    finish(stmt)
+stmt = prepare(db, "INSERT INTO users VALUES (2, 'Viral Shah')")
+execute(stmt)
+finish(stmt)
 
-    run(db, "INSERT INTO users VALUES (3, 'Stefan Karpinski')")
+run(db, "INSERT INTO users VALUES (3, 'Stefan Karpinski')")
 
-    stmt = prepare(db, "SELECT * FROM users")
-    execute(stmt)
-    row = fetchrow(stmt)
-    row = fetchrow(stmt)
-    row = fetchrow(stmt)
-    row = fetchrow(stmt)
-    finish(stmt)
+stmt = prepare(db, "SELECT * FROM users")
+execute(stmt)
+row = fetchrow(stmt)
+row = fetchrow(stmt)
+row = fetchrow(stmt)
+row = fetchrow(stmt)
+finish(stmt)
 
-    stmt = prepare(db, "SELECT * FROM users")
-    execute(stmt)
-    rows = fetchall(stmt)
-    finish(stmt)
+stmt = prepare(db, "SELECT * FROM users")
+execute(stmt)
+rows = fetchall(stmt)
+finish(stmt)
 
-    stmt = prepare(db, "SELECT * FROM users")
-    execute(stmt)
-    rows = fetchdf(stmt)
-    finish(stmt)
+stmt = prepare(db, "SELECT * FROM users")
+execute(stmt)
+rows = fetchdf(stmt)
+finish(stmt)
 
-    df = select(db, "SELECT * FROM users")
+df = select(db, "SELECT * FROM users")
 
-    tabledata = tableinfo(db, "users")
+tabledata = tableinfo(db, "users")
 
-    columndata = columninfo(db, "users", "id")
+columndata = columninfo(db, "users", "id")
 
-    stmt = prepare(db, "DROP TABLE users")
-    execute(stmt)
-    finish(stmt)
+stmt = prepare(db, "DROP TABLE users")
+execute(stmt)
+finish(stmt)
 
-    disconnect(db)
+disconnect(db)
+```
 
 # Type Reference
 
@@ -145,12 +147,13 @@ Get basic information about a specific column in a table in the form of a `Datab
 
 **Usage example**
 
-    using DBI
-    using SQLite
+```julia
+using DBI
+using SQLite
 
-    db = connect(SQLite3, "db.sqlite3")
-    coldata = columninfo(db, "users", "id")
-
+db = connect(SQLite3, "db.sqlite3")
+coldata = columninfo(db, "users", "id")
+```
 ---
 
 **`connect(::Type{DatabaseSystem}, args::Any...) -> DatabaseHandle`**
@@ -160,12 +163,12 @@ any information required to make the connection. Different databases expect
 substantially different types of information.
 
 **Usage example**
+```julia
+using DBI
+using SQLite
 
-    using DBI
-    using SQLite
-
-    db = connect(SQLite3, "db.sqlite3")
-
+db = connect(SQLite3, "db.sqlite3")
+```
 ---
 
 **`connect(f::Function, ::Type{DatabaseSystem}, args::Any...)`**
@@ -173,17 +176,17 @@ substantially different types of information.
 Set up a connection to a database, apply the function f to the connection, and disconnect on return or error.
 
 **Usage example**
+```julia
+using DBI
+using SQLite
 
-    using DBI
-    using SQLite
+connect(SQLite3, "db.sqlite3") do conn
+println("Connected.")
+error("Something went wrong.")
+end
 
-    connect(SQLite3, "db.sqlite3") do conn
-        println("Connected.")
-        error("Something went wrong.")
-    end
-
-    println("Disconnected.")
-
+println("Disconnected.")
+```
 ---
 
 **`disconnect(db::DatabaseHandle) -> Nothing`**
@@ -191,13 +194,13 @@ Set up a connection to a database, apply the function f to the connection, and d
 Shut down a connection to a database safely.
 
 **Usage example**
+```julia
+using DBI
+using SQLite
 
-    using DBI
-    using SQLite
-
-    db = connect(SQLite3, "db.sqlite3")
-    disconnect(db)
-
+db = connect(SQLite3, "db.sqlite3")
+disconnect(db)
+```
 ---
 
 **`errcode(db::DatabaseHandle) -> Cint`**
@@ -205,15 +208,15 @@ Shut down a connection to a database safely.
 Get the native error code for the database.
 
 **Usage example**
+```julia
+using DBI
+using SQLite
 
-    using DBI
-    using SQLite
-
-    db = connect(SQLite3, "db.sqlite3")
-    stmt = prepare(db, "SELECT * FROM users")
-    errcode(db)
-    disconnect(db)
-
+db = connect(SQLite3, "db.sqlite3")
+stmt = prepare(db, "SELECT * FROM users")
+errcode(db)
+disconnect(db)
+```
 ---
 
 **`errstring(db::DatabaseHandle) -> UTF8String` -**
@@ -221,15 +224,15 @@ Get the native error code for the database.
 Get the native error string for the database.
 
 **Usage example**
+```julia
+using DBI
+using SQLite
 
-    using DBI
-    using SQLite
-
-    db = connect(SQLite3, "db.sqlite3")
-    stmt = prepare(db, "SELECT * FROM users")
-    errstring(db)
-    disconnect(db)
-
+db = connect(SQLite3, "db.sqlite3")
+stmt = prepare(db, "SELECT * FROM users")
+errstring(db)
+disconnect(db)
+```
 ---
 
 **`execute(stmt::StatementHandle) -> Nothing`**
@@ -239,14 +242,14 @@ Execute a SQL statement with optional per-call variable bindings, which were ind
 *Note that every call to `execute(stmt)` updates the status of `stmt.db.status`, which can be checked for information about the success or failure of the most recent attempt at execution of the statement.*
 
 **Usage example**
+```julia
+using DBI
+using SQLite
 
-    using DBI
-    using SQLite
-
-    db = connect(SQLite3, "db.sqlite3")
-    stmt = prepare(db, "SELECT * FROM users")
-    execute(stmt)
-
+db = connect(SQLite3, "db.sqlite3")
+stmt = prepare(db, "SELECT * FROM users")
+execute(stmt)
+```
 ---
 
 **`executed(stmt::StatementHandle) -> Int`
@@ -254,16 +257,16 @@ Execute a SQL statement with optional per-call variable bindings, which were ind
 How many times has this statement been executed?
 
 **Usage example**
+```julia
+using DBI
+using SQLite
 
-    using DBI
-    using SQLite
-
-    db = connect(SQLite3, "db.sqlite3")
-    stmt = prepare(db, "SELECT * FROM users")
-    executed(stmt)
-    execute(stmt)
-    executed(stmt)
-
+db = connect(SQLite3, "db.sqlite3")
+stmt = prepare(db, "SELECT * FROM users")
+executed(stmt)
+execute(stmt)
+executed(stmt)
+```
 ---
 
 **`fetchall(stmt::StatementHandle) -> Vector{Vector{Any}}`**
@@ -271,15 +274,15 @@ How many times has this statement been executed?
 Fetch all rows returned by a statement as an `Vector{Vector{Any}}`.
 
 **Usage example**
+```julia
+using DBI
+using SQLite
 
-    using DBI
-    using SQLite
-
-    db = connect(SQLite3, "db.sqlite3")
-    stmt = prepare(db, "SELECT * FROM users")
-    execute(stmt)
-    rows = fetchall(stmt)
-
+db = connect(SQLite3, "db.sqlite3")
+stmt = prepare(db, "SELECT * FROM users")
+execute(stmt)
+rows = fetchall(stmt)
+```
 ---
 
 **`fetchdf(stmt::StatementHandle) -> DataFrame`**
@@ -287,15 +290,15 @@ Fetch all rows returned by a statement as an `Vector{Vector{Any}}`.
 Fetch all rows returned by a statement as a `DataFrame`.
 
 **Usage example**
+```julia
+using DBI
+using SQLite
 
-    using DBI
-    using SQLite
-
-    db = connect(SQLite3, "db.sqlite3")
-    stmt = prepare(db, "SELECT * FROM users")
-    execute(stmt)
-    df = fetchdf(stmt)
-
+db = connect(SQLite3, "db.sqlite3")
+stmt = prepare(db, "SELECT * FROM users")
+execute(stmt)
+df = fetchdf(stmt)
+```
 ---
 
 **`fetchrow(stmt::StatementHandle) -> Vector{Any}`**
@@ -303,15 +306,15 @@ Fetch all rows returned by a statement as a `DataFrame`.
 Fetch the current row returned by execution of a statement as an `Vector{Any}`.
 
 **Usage example**
+```julia
+using DBI
+using SQLite
 
-    using DBI
-    using SQLite
-
-    db = connect(SQLite3, "db.sqlite3")
-    stmt = prepare(db, "SELECT * FROM users")
-    execute(stmt)
-    row = fetchrow(stmt)
-
+db = connect(SQLite3, "db.sqlite3")
+stmt = prepare(db, "SELECT * FROM users")
+execute(stmt)
+row = fetchrow(stmt)
+```
 ---
 
 **`finish(stmt::StatementHandle) -> Nothing`**
@@ -319,16 +322,16 @@ Fetch the current row returned by execution of a statement as an `Vector{Any}`.
 Finalize a SQL statement's execution.
 
 **Usage example**
+```julia
+using DBI
+using SQLite
 
-    using DBI
-    using SQLite
-
-    db = connect(SQLite3, "db.sqlite3")
-    stmt = prepare(db, "SELECT * FROM users")
-    execute(stmt)
-    row = fetchrow(stmt)
-    finish(stmt)
-
+db = connect(SQLite3, "db.sqlite3")
+stmt = prepare(db, "SELECT * FROM users")
+execute(stmt)
+row = fetchrow(stmt)
+finish(stmt)
+```
 ---
 
 **`lastinsertid(db::DatabaseHandle, table::String) -> Int`
@@ -336,15 +339,15 @@ Finalize a SQL statement's execution.
 Determine the row ID of the last row inserted into `table`.
 
 **Usage example**
+```julia
+using DBI
+using SQLite
 
-    using DBI
-    using SQLite
-
-    db = connect(SQLite3, "db.sqlite3")
-    stmt = prepare(db, "INSERT INTO users (name) VALUES ('foo')")
-    execute(stmt)
-    lastinsertid(db, "users")
-
+db = connect(SQLite3, "db.sqlite3")
+stmt = prepare(db, "INSERT INTO users (name) VALUES ('foo')")
+execute(stmt)
+lastinsertid(db, "users")
+```
 ---
 
 **`prepare(db::DatabaseHandle, sql::String) -> StatementHandle`**
@@ -352,13 +355,13 @@ Determine the row ID of the last row inserted into `table`.
 Ask the database to prepare, but not execute, a SQL statement.
 
 **Usage example**
+```julia
+using DBI
+using SQLite
 
-    using DBI
-    using SQLite
-
-    db = connect(SQLite3, "db.sqlite3")
-    stmt = prepare(db, "SELECT * FROM users")
-
+db = connect(SQLite3, "db.sqlite3")
+stmt = prepare(db, "SELECT * FROM users")
+```
 ---
 
 **`run(db::DatabaseHandle, sql::String) -> Nothing`**
@@ -366,13 +369,13 @@ Ask the database to prepare, but not execute, a SQL statement.
 Combine a call to `prepare`, `execute` and `finish` to run a non-`SELECT` SQL statement.
 
 **Usage example**
+```julia
+using DBI
+using SQLite
 
-    using DBI
-    using SQLite
-
-    db = connect(SQLite3, "db.sqlite3")
-    run(db, "DROP TABLE users")
-
+db = connect(SQLite3, "db.sqlite3")
+run(db, "DROP TABLE users")
+```
 ---
 
 **`sqlescape(sql::String) -> UTF8String`**
@@ -382,10 +385,10 @@ Escape a SQL statement to prevent SQL injections.
 **This function is not yet implemented.**
 
 **Usage example**
-
-    using DBI
-    safesql = sqlescape("SELECT * FROM users WHERE id = `a`)
-
+```julia
+using DBI
+safesql = sqlescape("SELECT * FROM users WHERE id = `a`)
+```
 ---
 
 **`sql2jltype(typestring::String) -> DataType`**
@@ -393,11 +396,11 @@ Escape a SQL statement to prevent SQL injections.
 Convert a SQL type into a Julia `DataType`.
 
 **Usage example**
-
-    using DBI
-    T = sql2jltype("VARCHAR(255)")
-    @assert T == UTF8String
-
+```julia
+using DBI
+T = sql2jltype("VARCHAR(255)")
+@assert T == UTF8String
+```
 ---
 
 **`select(db::DatabaseHandle, sql::String) -> DataFrame`**
@@ -406,12 +409,13 @@ Combine a call to `prepare`, `execute`, `fetchdf` and `finish` to produce a Data
 
 **Usage example**
 
-    using DBI
-    using SQLite
+```julia
+using DBI
+using SQLite
 
-    db = connect(SQLite3, "db.sqlite3")
-    df = select(db, "SELECT * FROM users")
-
+db = connect(SQLite3, "db.sqlite3")
+df = select(db, "SELECT * FROM users")
+```
 ---
 
 **`tableinfo(db::DatabaseTable, table::String) -> DatabaseTable`**
@@ -420,12 +424,13 @@ Get metadata about a specific table in a database in the form of a `DatabaseTabl
 
 **Usage example**
 
-    using DBI
-    using SQLite
+```julia
+using DBI
+using SQLite
 
-    db = connect(SQLite3, "db.sqlite3")
-    tabledata = tableinfo(db, "users")
-
+db = connect(SQLite3, "db.sqlite3")
+tabledata = tableinfo(db, "users")
+```
 # Coming Soon
 
 * Implement `sqlescape()`
