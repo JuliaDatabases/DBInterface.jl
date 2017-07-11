@@ -1,6 +1,7 @@
 module DBI
     using DataArrays
     using DataFrames
+    using Compat
 
     export columninfo,
            disconnect,
@@ -18,26 +19,22 @@ module DBI
            sql2jltype,
            tableinfo
 
-    if !isdefined(:AbstractString)
-        const AbstractString = Base.String
-    end
-
     abstract DatabaseSystem
     abstract DatabaseHandle
     abstract StatementHandle
 
     immutable DatabaseColumn
-        name::UTF8String
+        name::String
         datatype::DataType
         length::Int
-        collation::UTF8String
+        collation::String
         nullable::Bool
         primarykey::Bool
         autoincrement::Bool
     end
 
     immutable DatabaseTable
-        name::UTF8String
+        name::String
         columns::Vector{DatabaseColumn}
     end
 
@@ -142,9 +139,9 @@ module DBI
             return Float64, 0
         elseif ismatch(r"VARCHAR\((\d+)\)", t)
             m = match(r"VARCHAR\((\d+)\)", t)
-            return UTF8String, int(m.captures[1])
+            return String, int(m.captures[1])
         elseif t == "TEXT"
-            return UTF8String, -1
+            return String, -1
         elseif t == "BLOB"
             return Vector{Uint8}, -1
         else
