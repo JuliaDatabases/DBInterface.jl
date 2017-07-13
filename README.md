@@ -1,6 +1,8 @@
 DBI.jl
 ======
 
+[![Build Status](https://travis-ci.org/jgoldfar/DBI.jl.svg?branch=master)](https://travis-ci.org/jgoldfar/DBI.jl)
+
 The DBI package is meant to provide a database-independent API that all database drivers can be expected to comply with. This makes it easy to write code that can be easily ported between different databases. The inspiration for this package comes from the classic Perl DBI module, which has a nice tutorial at [http://www.perl.com/pub/1999/10/DBI.html](http://www.perl.com/pub/1999/10/DBI.html) and more comprehensive documentation at [http://search.cpan.org/~timb/DBI-1.630/DBI.pm](http://search.cpan.org/~timb/DBI-1.630/DBI.pm).
 
 The current draft API is summarized below and then described in greater detail.
