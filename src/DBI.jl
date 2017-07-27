@@ -1,6 +1,4 @@
 module DBI
-    using DataArrays
-    using DataFrames
     using Compat
 
     export columninfo,

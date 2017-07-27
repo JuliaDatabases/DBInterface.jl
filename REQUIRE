@@ -1,4 +1,2 @@
-julia 0.4
-DataFrames 0.6.6
-DataArrays
+julia 0.5
 Compat
