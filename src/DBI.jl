@@ -1,5 +1,5 @@
 module DBI
-    using Compat
+    import Compat: @compat, String
 
     export columninfo,
            disconnect,
@@ -17,9 +17,9 @@ module DBI
            sql2jltype,
            tableinfo
 
-    abstract DatabaseSystem
-    abstract DatabaseHandle
-    abstract StatementHandle
+    @compat abstract type DatabaseSystem end
+    @compat abstract type DatabaseHandle end
+    @compat abstract type StatementHandle end
 
     immutable DatabaseColumn
         name::String
