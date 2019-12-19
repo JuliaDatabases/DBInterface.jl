@@ -77,7 +77,7 @@ function executemany!(stmt::DBI.Statement, args...; kw...)
             xargs = map(x -> x[i], args)
             DBI.execute!(stmt, xargs...)
         end
-    else # !isempty(kw)
+    elseif !isempty(kw)
         k = kw[1]
         len = length(k)
         all(x -> length(x) == len, kw) || throw(ParameterError("named parameters provided to `DBI.executemany!` do not all have the same number of parameters"))
@@ -85,6 +85,8 @@ function executemany!(stmt::DBI.Statement, args...; kw...)
             xargs = collect(k=>v[i] for (k, v) in kw)
             DBI.execute!(stmt; xargs...)
         end
+    else
+        DBI.execute!(stmt)
     end
     return
 end
