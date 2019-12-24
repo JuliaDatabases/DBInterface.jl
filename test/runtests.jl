@@ -1,3 +1,3 @@
-using DBI, Test
+using DBInterface, Test
 
-@test_throws DBI.NotImplementedError DBI.connect(Int64)
+@test_throws DBInterface.NotImplementedError DBInterface.connect(Int64)
