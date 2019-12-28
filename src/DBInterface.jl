@@ -58,10 +58,6 @@ execute!(stmt::DBInterface.Statement, args...; kw...) = throw(NotImplementedErro
 
 DBInterface.execute!(conn::Connection, sql::AbstractString, args...; kw...) = DBInterface.execute!(DBInterface.prepare(conn, sql), args...; kw...)
 
-struct ParameterError
-    msg::String
-end
-
 """
     DBInterface.executemany!(conn::DBInterface.Connect, sql::AbstractString, args...; kw...) => Nothing
     DBInterface.executemany!(stmt::DBInterface.Statement, args...; kw...) => Nothing
@@ -103,6 +99,11 @@ close!(x) = throw(NotImplementedError("`DBInterface.close!` not implemented for 
 # exception handling
 "Error for signaling a database package hasn't implemented an interface method"
 struct NotImplementedError <: Exception
+    msg::String
+end
+
+"Error for signaling that parameters are used inconsistently or incorrectly."
+struct ParameterError <: Exception
     msg::String
 end
 
