@@ -20,21 +20,44 @@ Immediately closes a database connection so further queries cannot be processed.
 """
 function close! end
 
-close!(conn::DBInterface.Connection) = throw(NotImplementedError("`DBInterface.close!` not implemented for `$(typeof(conn))`"))
+close!(conn::Connection) = throw(NotImplementedError("`DBInterface.close!` not implemented for `$(typeof(conn))`"))
 
 "Database packages should provide a `DBInterface.Statement` subtype which represents a valid, prepared SQL statement that can be executed repeatedly"
 abstract type Statement end
 
 """
     DBInterface.prepare(conn::DBInterface.Connection, sql::AbstractString) => DBInterface.Statement
+    DBInterface.prepare(f::Function, sql::AbstractString) => DBInterface.Statement
 
 Database packages should overload `DBInterface.prepare` for a specific `DBInterface.Connection` subtype, that validates and prepares
 a SQL statement given as an `AbstractString` `sql` argument, and returns a `DBInterface.Statement` subtype. It is expected
 that `DBInterface.Statement`s are only valid for the lifetime of the `DBInterface.Connection` object against which they are prepared.
+For convenience, users may call `DBInterface.prepare(f::Function, sql)` which first calls `f()` to retrieve a valid `DBInterface.Connection`
+before calling `DBInterface.prepare(conn, sql)`; this allows deferring connection retrieval and thus statement preparation until runtime,
+which is often convenient when building applications.
 """
 function prepare end
 
-prepare(conn::DBInterface.Connection, sql::AbstractString) = throw(NotImplementedError("`DBInterface.prepare` not implemented for `$(typeof(conn))`"))
+prepare(conn::Connection, sql::AbstractString) = throw(NotImplementedError("`DBInterface.prepare` not implemented for `$(typeof(conn))`"))
+prepare(f::Function, sql::AbstractString) = prepare(f(), sql)
+
+const PREPARED_STMTS = Dict{Symbol, Statement}()
+
+"""
+    DBInterface.@prepare f sql
+
+Takes a `DBInterface.Connection`-retrieval function `f` and SQL statement `sql` and will return a prepared statement, via usage of `DBInterface.prepare`.
+If the statement has already been prepared, it will be re-used (prepared statements are cached).
+"""
+macro prepare(getDB, sql)
+    key = gensym()
+    return quote
+        get!(DBInterface.PREPARED_STMTS, $(QuoteNode(key))) do
+            println("preparing stmt")
+            DBInterface.prepare($(esc(getDB)), $sql)
+        end
+    end
+end
 
 "Any object that iterates \"rows\", which are objects that are property-accessible and indexable. See `DBInterface.execute!` for more details on fetching query results."
 abstract type Cursor end
@@ -54,9 +77,9 @@ do not return results, an iterator is still expected to be returned that just it
 """
 function execute! end
 
-execute!(stmt::DBInterface.Statement, args...; kw...) = throw(NotImplementedError("`DBInterface.execute!` not implemented for `$(typeof(stmt))`"))
+execute!(stmt::Statement, args...; kw...) = throw(NotImplementedError("`DBInterface.execute!` not implemented for `$(typeof(stmt))`"))
 
-DBInterface.execute!(conn::Connection, sql::AbstractString, args...; kw...) = DBInterface.execute!(DBInterface.prepare(conn, sql), args...; kw...)
+execute!(conn::Connection, sql::AbstractString, args...; kw...) = execute!(prepare(conn, sql), args...; kw...)
 
 """
     DBInterface.executemany!(conn::DBInterface.Connect, sql::AbstractString, args...; kw...) => Nothing
@@ -64,14 +87,14 @@ DBInterface.execute!(conn::Connection, sql::AbstractString, args...; kw...) = DB
 
 Similar to 
 """
-function executemany!(stmt::DBInterface.Statement, args...; kw...)
+function executemany!(stmt::Statement, args...; kw...)
     if !isempty(args)
         arg = args[1]
         len = length(arg)
         all(x -> length(x) == len, args) || throw(ParameterError("positional parameters provided to `DBInterface.executemany!` do not all have the same number of parameters"))
         for i = 1:len
             xargs = map(x -> x[i], args)
-            DBInterface.execute!(stmt, xargs...)
+            execute!(stmt, xargs...)
         end
     elseif !isempty(kw)
         k = kw[1]
@@ -79,15 +102,22 @@ function executemany!(stmt::DBInterface.Statement, args...; kw...)
         all(x -> length(x) == len, kw) || throw(ParameterError("named parameters provided to `DBInterface.executemany!` do not all have the same number of parameters"))
         for i = 1:len
             xargs = collect(k=>v[i] for (k, v) in kw)
-            DBInterface.execute!(stmt; xargs...)
+            execute!(stmt; xargs...)
         end
     else
-        DBInterface.execute!(stmt)
+        execute!(stmt)
     end
     return
 end
 
-DBInterface.executemany!(conn::Connection, sql::AbstractString, args...; kw...) = DBInterface.executemany!(DBInterface.prepare(conn, sql), args...; kw...)
+executemany!(conn::Connection, sql::AbstractString, args...; kw...) = executemany!(prepare(conn, sql), args...; kw...)
+
+"""
+    DBInterface.lastrowid(x::Cursor) => Int
+
+If supported by the specific database cursor, returns the last inserted row id after executing an INSERT statement.
+"""
+lastrowid(::T) where {T} = throw(NotImplementedError("`DBInterface.lastrowid` not implemented for $T"))
 
 """
     DBInterface.close!(x::Cursor) => Nothing

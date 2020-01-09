@@ -13,6 +13,8 @@ stmt = DBInterface.prepare(conn, sql) # prepare a sql statement against the conn
 
 results = DBInterface.execute!(stmt) # execute a prepared statement; returns an iterator of rows (property-accessible & indexable)
 
+rowid = DBInterface.lastrowid(results) # get the last row id of an INSERT statement, as supported by the database
+
 # example of using a query resultset
 for row in results
     @show propertynames(row) # see possible column names of row results
@@ -46,4 +48,5 @@ DBInterface.close!
 DBInterface.Statement
 DBInterface.prepare
 DBInterface.execute!
+DBInterface.lastrowid
 ```
