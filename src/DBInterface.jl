@@ -110,7 +110,14 @@ function executemany!(stmt::Statement, args...; kw...)
     return
 end
 
-DBInterface.executemany!(conn::Connection, sql::AbstractString, args...; kw...) = DBInterface.executemany!(DBInterface.prepare(conn, sql), args...; kw...)
+executemany!(conn::Connection, sql::AbstractString, args...; kw...) = executemany!(prepare(conn, sql), args...; kw...)
+
+"""
+    DBInterface.lastrowid(x::Cursor) => Int
+
+If supported by the specific database cursor, returns the last inserted row id after executing an INSERT statement.
+"""
+lastrowid(::T) where {T} = throw(NotImplementedError("`DBInterface.lastrowid` not implemented for $T"))
 
 """
     DBInterface.close!(x::Cursor) => Nothing
