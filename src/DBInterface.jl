@@ -58,27 +58,27 @@ macro prepare(getDB, sql)
     end
 end
 
-"Any object that iterates \"rows\", which are objects that are property-accessible and indexable. See `DBInterface.execute!` for more details on fetching query results."
+"Any object that iterates \"rows\", which are objects that are property-accessible and indexable. See `DBInterface.execute` for more details on fetching query results."
 abstract type Cursor end
 
 """
-    DBInterface.execute!(conn::DBInterface.Connection, sql::AbstractString, [params]) => DBInterface.Cursor
-    DBInterface.execute!(stmt::DBInterface.Statement, [params]) => DBInterface.Cursor
+    DBInterface.execute(conn::DBInterface.Connection, sql::AbstractString, [params]) => DBInterface.Cursor
+    DBInterface.execute(stmt::DBInterface.Statement, [params]) => DBInterface.Cursor
 
-Database packages should overload `DBInterface.execute!` for a valid, prepared `DBInterface.Statement` subtype (the first method
+Database packages should overload `DBInterface.execute` for a valid, prepared `DBInterface.Statement` subtype (the first method
 signature is defined in DBInterface.jl using `DBInterface.prepare`), which takes an optional `params` argument, which should be
 an indexable collection (`Vector` or `Tuple`) for positional parameters, or a `NamedTuple` for named parameters.
-`DBInterface.execute!` should return a valid `DBInterface.Cursor` object, which is any iterator of "rows",
+`DBInterface.execute` should return a valid `DBInterface.Cursor` object, which is any iterator of "rows",
 which themselves must be property-accessible (i.e. implement `propertynames` and `getproperty` for value access by name),
 and indexable (i.e. implement `length` and `getindex` for value access by index). These "result" objects do not need
 to subtype `DBInterface.Cursor` explicitly as long as they satisfy the interface. For DDL/DML SQL statements, which typically
 do not return results, an iterator is still expected to be returned that just iterates `nothing`, i.e. an "empty" iterator.
 """
-function execute! end
+function execute end
 
-execute!(stmt::Statement, params=()) = throw(NotImplementedError("`DBInterface.execute!` not implemented for `$(typeof(stmt))`"))
+execute(stmt::Statement, params=()) = throw(NotImplementedError("`DBInterface.execute` not implemented for `$(typeof(stmt))`"))
 
-execute!(conn::Connection, sql::AbstractString, params=()) = execute!(prepare(conn, sql), params)
+execute(conn::Connection, sql::AbstractString, params=()) = execute(prepare(conn, sql), params)
 
 struct LazyIndex{T} <: AbstractVector{Any}
     x::T
@@ -91,38 +91,38 @@ Base.size(x::LazyIndex) = (length(x.x),)
 Base.getindex(x::LazyIndex, i::Int) = x.x[i][x.i]
 
 """
-    DBInterface.executemany!(conn::DBInterface.Connect, sql::AbstractString, [params]) => Nothing
-    DBInterface.executemany!(stmt::DBInterface.Statement, [params]) => Nothing
+    DBInterface.executemany(conn::DBInterface.Connect, sql::AbstractString, [params]) => Nothing
+    DBInterface.executemany(stmt::DBInterface.Statement, [params]) => Nothing
 
-Similar in usage to `DBInterface.execute!`, but allows passing multiple sets of parameters to be executed in sequence.
-`params`, like for `DBInterface.execute!`, should be an indexable collection (`Vector` or `Tuple`) or `NamedTuple`, but instead
+Similar in usage to `DBInterface.execute`, but allows passing multiple sets of parameters to be executed in sequence.
+`params`, like for `DBInterface.execute`, should be an indexable collection (`Vector` or `Tuple`) or `NamedTuple`, but instead
 of a single scalar value per parameter, an indexable collection should be passed for each parameter. By default, each set of
-parameters will be looped over and `DBInterface.execute!` will be called for each. Note that no result sets or cursors are returned
+parameters will be looped over and `DBInterface.execute` will be called for each. Note that no result sets or cursors are returned
 for any execution, so the usage is mainly intended for bulk INSERT statements.
 """
-function executemany!(stmt::Statement, params=())
+function executemany(stmt::Statement, params=())
     if !isempty(params)
         param = params[1]
         len = length(param)
         all(x -> length(x) == len, params) || throw(ParameterError("parameters provided to `DBInterface.executemany!` do not all have the same number of parameters"))
         for i = 1:len
             xargs = LazyIndex(params, i)
-            execute!(stmt, xargs)
+            execute(stmt, xargs)
         end
     else
-        execute!(stmt)
+        execute(stmt)
     end
     return
 end
 
-executemany!(conn::Connection, sql::AbstractString, params=()) = executemany!(prepare(conn, sql), params)
+executemany(conn::Connection, sql::AbstractString, params=()) = executemany(prepare(conn, sql), params)
 
 """
     DBInterface.close!(stmt::DBInterface.Statement)
 
 Close a prepared statement so further queries cannot be executed.
 """
-function close! end
+close!(stmt::Statement) = throw(NotImplementedError("`DBInterface.close!` not implemented for `$(typeof(stmt))`"))
 
 """
     DBInterface.lastrowid(x::Cursor) => Int
