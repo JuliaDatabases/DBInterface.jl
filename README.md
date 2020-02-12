@@ -11,7 +11,7 @@ conn = DBInterface.connect(T, args...; kw...) # create a connection to a specifi
 
 stmt = DBInterface.prepare(conn, sql) # prepare a sql statement against the connection; returns a statement object
 
-results = DBInterface.execute!(stmt) # execute a prepared statement; returns an iterator of rows (property-accessible & indexable)
+results = DBInterface.execute(stmt) # execute a prepared statement; returns an iterator of rows (property-accessible & indexable)
 
 rowid = DBInterface.lastrowid(results) # get the last row id of an INSERT statement, as supported by the database
 
@@ -26,17 +26,19 @@ end
 df = DataFrame(results)
 CSV.write("results.csv", results)
 
-results = DBInterface.execute!(conn, sql) # convenience method if statement preparation/re-use isn't needed
+results = DBInterface.execute(conn, sql) # convenience method if statement preparation/re-use isn't needed
 
 stmt = DBInterface.prepare(conn, "INSERT INTO test_table VALUES(?, ?)") # prepare a statement with positional parameters
 
-DBInterface.execute!(stmt, 1, 3.14) # execute the prepared INSERT statement, passing 1 and 3.14 as positional parameters
+DBInterface.execute(stmt, [1, 3.14]) # execute the prepared INSERT statement, passing 1 and 3.14 as positional parameters
 
 stmt = DBInterface.prepare(conn, "INSERT INTO test_table VALUES(:col1, :col2)") # prepare a statement with named parameters
 
-DBInterface.execute!(stmt; col1=1, col2=3.14) # execute the prepared INSERT statement, with 1 and 3.14 as named parameters
+DBInterface.execute(stmt, (col1=1, col2=3.14)) # execute the prepared INSERT statement, with 1 and 3.14 as named parameters
 
-DBInterface.executemany!(stmt; col1=[1,2,3,4,5], col2=[3.14, 1.23, 2.34 3.45, 4.56]) # execute the prepared statement multiple times for each set of named parameters; each named parameter must be an indexable collection
+DBInterface.executemany(stmt, (col1=[1,2,3,4,5], col2=[3.14, 1.23, 2.34 3.45, 4.56])) # execute the prepared statement multiple times for each set of named parameters; each named parameter must be an indexable collection
+
+DBInterface.close!(stmt) # close the prepared statement
 ```
 
 ### For Database Package Developers
@@ -47,6 +49,6 @@ DBInterface.connect
 DBInterface.close!
 DBInterface.Statement
 DBInterface.prepare
-DBInterface.execute!
+DBInterface.execute
 DBInterface.lastrowid
 ```
