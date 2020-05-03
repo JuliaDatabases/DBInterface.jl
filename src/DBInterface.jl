@@ -73,6 +73,9 @@ which themselves must be property-accessible (i.e. implement `propertynames` and
 and indexable (i.e. implement `length` and `getindex` for value access by index). These "result" objects do not need
 to subtype `DBInterface.Cursor` explicitly as long as they satisfy the interface. For DDL/DML SQL statements, which typically
 do not return results, an iterator is still expected to be returned that just iterates `nothing`, i.e. an "empty" iterator.
+
+Note that `DBInterface.execute` returns ***a single*** `DBInterface.Cursor`, which represents a single resultset from the database.
+For use-cases involving multiple resultsets from a single query, see `DBInterface.executemultiple`.
 """
 function execute end
 
@@ -91,7 +94,7 @@ Base.size(x::LazyIndex) = (length(x.x),)
 Base.getindex(x::LazyIndex, i::Int) = x.x[i][x.i]
 
 """
-    DBInterface.executemany(conn::DBInterface.Connect, sql::AbstractString, [params]) => Nothing
+    DBInterface.executemany(conn::DBInterface.Connection, sql::AbstractString, [params]) => Nothing
     DBInterface.executemany(stmt::DBInterface.Statement, [params]) => Nothing
 
 Similar in usage to `DBInterface.execute`, but allows passing multiple sets of parameters to be executed in sequence.
@@ -116,6 +119,19 @@ function executemany(stmt::Statement, params=())
 end
 
 executemany(conn::Connection, sql::AbstractString, params=()) = executemany(prepare(conn, sql), params)
+
+"""
+    DBInterface.executemultiple(conn::DBInterface.Connection, sql::AbstractString, [params]) => Cursor-iterator
+    DBInterface.executemultiple(stmt::DBInterface.Statement, [params]) => Cursor-iterator
+
+Some databases allow returning multiple resultsets from a "single" query (typically semi-colon (`;`) separated statements, or from calling stored procedures).
+This function takes the exact same arguments as `DBInterface.execute`, but instead of returning a single `Cursor`, it returns an iterator of `Cursor`s.
+This function defines a generic fallback that just returns `(DBInterface.execute(stmt, params),)`, a length-1 tuple for a single `Cursor` resultset.
+"""
+function executemultiple end
+
+executemultiple(stmt::Statement, params=()) = (DBInterface.execute(stmt, params),)
+executemultiple(conn::Connection, sql::AbstractString, params=()) = executemultiple(prepare(conn, sql), params)
 
 """
     DBInterface.close!(stmt::DBInterface.Statement)
