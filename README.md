@@ -38,6 +38,18 @@ DBInterface.execute(stmt, (col1=1, col2=3.14)) # execute the prepared INSERT sta
 
 DBInterface.executemany(stmt, (col1=[1,2,3,4,5], col2=[3.14, 1.23, 2.34 3.45, 4.56])) # execute the prepared statement multiple times for each set of named parameters; each named parameter must be an indexable collection
 
+results = DBInterface.executemultiple(conn, sql) # where sql is a query that returns multiple resultsets
+
+# first iterate through resultsets
+for result in results
+    # for each resultset, we can iterate through resultset rows
+    for row in result
+        @show propertynames(row)
+        row.col1
+        row[1]
+    end
+end
+
 DBInterface.close!(stmt) # close the prepared statement
 ```
 
@@ -50,5 +62,6 @@ DBInterface.close!
 DBInterface.Statement
 DBInterface.prepare
 DBInterface.execute
+DBInterface.executemultiple
 DBInterface.lastrowid
 ```
