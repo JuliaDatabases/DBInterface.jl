@@ -11,16 +11,16 @@ that returns a valid, live database connection that can be queried against.
 """
 function connect end
 
-connect(T, args...; kw...) = throw(NotImplementedError("`DBInterface.connect` not implemented for `$T`"))
+# Different `close!` signatures have their own docstrings.
+function close! end
 
 """
     DBInterface.close!(conn::DBInterface.Connection)
 
 Immediately closes a database connection so further queries cannot be processed.
 """
-function close! end
+close!(conn::Connection)
 
-close!(conn::Connection) = throw(NotImplementedError("`DBInterface.close!` not implemented for `$(typeof(conn))`"))
 
 "Database packages should provide a `DBInterface.Statement` subtype which represents a valid, prepared SQL statement that can be executed repeatedly"
 abstract type Statement end
@@ -38,7 +38,6 @@ which is often convenient when building applications.
 """
 function prepare end
 
-prepare(conn::Connection, sql::AbstractString) = throw(NotImplementedError("`DBInterface.prepare` not implemented for `$(typeof(conn))`"))
 prepare(f::Function, sql::AbstractString) = prepare(f(), sql)
 
 const PREPARED_STMTS = Dict{Symbol, Statement}()
@@ -78,8 +77,6 @@ Note that `DBInterface.execute` returns ***a single*** `DBInterface.Cursor`, whi
 For use-cases involving multiple resultsets from a single query, see `DBInterface.executemultiple`.
 """
 function execute end
-
-execute(stmt::Statement, params=()) = throw(NotImplementedError("`DBInterface.execute` not implemented for `$(typeof(stmt))`"))
 
 execute(conn::Connection, sql::AbstractString, params=()) = execute(prepare(conn, sql), params)
 
@@ -138,28 +135,23 @@ executemultiple(conn::Connection, sql::AbstractString, params=()) = executemulti
 
 Close a prepared statement so further queries cannot be executed.
 """
-close!(stmt::Statement) = throw(NotImplementedError("`DBInterface.close!` not implemented for `$(typeof(stmt))`"))
+close!(stmt::Statement)
 
 """
     DBInterface.lastrowid(x::Cursor) => Int
 
 If supported by the specific database cursor, returns the last inserted row id after executing an INSERT statement.
 """
-lastrowid(::T) where {T} = throw(NotImplementedError("`DBInterface.lastrowid` not implemented for $T"))
+function lastrowid end
 
 """
     DBInterface.close!(x::Cursor) => Nothing
 
 Immediately close a resultset cursor. Database packages should overload for the provided resultset `Cursor` object.
 """
-close!(x) = throw(NotImplementedError("`DBInterface.close!` not implemented for `$(typeof(x))`"))
+close!(x::Cursor)
 
 # exception handling
-"Error for signaling a database package hasn't implemented an interface method"
-struct NotImplementedError <: Exception
-    msg::String
-end
-
 "Error for signaling that parameters are used inconsistently or incorrectly."
 struct ParameterError <: Exception
     msg::String
