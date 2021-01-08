@@ -1,5 +1,14 @@
 module DBInterface
 
+"""
+Declare the string as written in SQL.
+
+The macro doesn't do any processing of the string.
+"""
+macro sql_str(cmd)
+    cmd
+end
+
 "Database packages should subtype `DBInterface.Connection` which represents a connection to a database"
 abstract type Connection end
 
