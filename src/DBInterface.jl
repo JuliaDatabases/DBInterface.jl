@@ -57,6 +57,13 @@ macro prepare(getDB, sql)
     end
 end
 
+"""
+    DBInterface.close!(stmt::DBInterface.Statement)
+
+Close a prepared statement so further queries cannot be executed.
+"""
+close!(stmt::Statement)
+
 "Any object that iterates \"rows\", which are objects that are property-accessible and indexable. See `DBInterface.execute` for more details on fetching query results."
 abstract type Cursor end
 
@@ -79,6 +86,7 @@ const StatementParams = Union{PositionalStatementParams, NamedStatementParams}
 """
     DBInterface.execute(conn::DBInterface.Connection, sql::AbstractString, [params]) => DBInterface.Cursor
     DBInterface.execute(stmt::DBInterface.Statement, [params]) => DBInterface.Cursor
+    DBInterface.execute(f::Callable, conn::DBInterface.Connection, sql::AbstractString, [params])
 
 Database packages should overload `DBInterface.execute` for a valid, prepared `DBInterface.Statement` subtype (the first method
 signature is defined in DBInterface.jl using `DBInterface.prepare`), which takes an optional `params` argument, which should be
@@ -92,15 +100,29 @@ to subtype `DBInterface.Cursor` explicitly as long as they satisfy the interface
 do not return results, an iterator is still expected to be returned that just iterates `nothing`, i.e. an "empty" iterator.
 
 Note that `DBInterface.execute` returns ***a single*** `DBInterface.Cursor`, which represents a single resultset from the database.
-For use-cases involving multiple resultsets from a single query, see `DBInterface.executemultiple`.
+For use-cases involving multiple result-sets from a single query, see `DBInterface.executemultiple`.
+
+If function `f` is provided, `DBInterface.execute` will return the result of applying `f` to the `DBInterface.Cursor` object
+and close the prepared statement upon exit.
 """
 function execute end
 
 execute(conn::Connection, sql::AbstractString, params::StatementParams) = execute(prepare(conn, sql), params)
 
+function execute(f::Base.Callable, conn::Connection, sql::AbstractString, params::StatementParams)
+    stmt = prepare(conn, sql)
+    try
+        cursor = execute(stmt, params)
+        return f(cursor)
+    finally
+        close!(stmt)
+    end
+end
+
 # keyarg versions
 execute(stmt::Statement; kwargs...) = execute(stmt, kwargs.data)
 execute(conn::Connection, sql::AbstractString; kwargs...) = execute(conn, sql, kwargs.data)
+execute(f::Base.Callable, conn::Connection, sql::AbstractString; kwargs...) = execute(f, conn, sql, kwargs.data)
 
 struct LazyIndex{T} <: AbstractVector{Any}
     x::T
@@ -157,13 +179,6 @@ executemultiple(conn::Connection, sql::AbstractString, params::StatementParams) 
 # keyarg version
 executemultiple(stmt::Statement; kwargs...) = executemultiple(stmt, kwargs.data)
 executemultiple(conn::Connection, sql::AbstractString; kwargs...) = executemultiple(conn, sql, kwargs.data)
-
-"""
-    DBInterface.close!(stmt::DBInterface.Statement)
-
-Close a prepared statement so further queries cannot be executed.
-"""
-close!(stmt::Statement)
 
 """
     DBInterface.lastrowid(x::Cursor) => Int
