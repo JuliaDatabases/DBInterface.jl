@@ -60,6 +60,22 @@ end
 "Any object that iterates \"rows\", which are objects that are property-accessible and indexable. See `DBInterface.execute` for more details on fetching query results."
 abstract type Cursor end
 
+
+"""
+The container types for positional statement parameters supported by `DBInterface.execute`
+"""
+const PositionalStatementParams = Union{AbstractVector, Tuple}
+
+"""
+The container types for named statement parameters supported by `DBInterface.execute`
+"""
+const NamedStatementParams = Union{AbstractDict, NamedTuple}
+
+"""
+The container types for statement parameters supported by `DBInterface.execute`
+"""
+const StatementParams = Union{PositionalStatementParams, NamedStatementParams}
+
 """
     DBInterface.execute(conn::DBInterface.Connection, sql::AbstractString, [params]) => DBInterface.Cursor
     DBInterface.execute(stmt::DBInterface.Statement, [params]) => DBInterface.Cursor
@@ -67,6 +83,8 @@ abstract type Cursor end
 Database packages should overload `DBInterface.execute` for a valid, prepared `DBInterface.Statement` subtype (the first method
 signature is defined in DBInterface.jl using `DBInterface.prepare`), which takes an optional `params` argument, which should be
 an indexable collection (`Vector` or `Tuple`) for positional parameters, or a `NamedTuple` for named parameters.
+Alternatively, the parameters could be specified as keyword agruments of `DBInterface.execute`.
+
 `DBInterface.execute` should return a valid `DBInterface.Cursor` object, which is any iterator of "rows",
 which themselves must be property-accessible (i.e. implement `propertynames` and `getproperty` for value access by name),
 and indexable (i.e. implement `length` and `getindex` for value access by index). These "result" objects do not need
@@ -78,7 +96,11 @@ For use-cases involving multiple resultsets from a single query, see `DBInterfac
 """
 function execute end
 
-execute(conn::Connection, sql::AbstractString, params=()) = execute(prepare(conn, sql), params)
+execute(conn::Connection, sql::AbstractString, params::StatementParams) = execute(prepare(conn, sql), params)
+
+# keyarg versions
+execute(stmt::Statement; kwargs...) = execute(stmt, kwargs.data)
+execute(conn::Connection, sql::AbstractString; kwargs...) = execute(conn, sql, kwargs.data)
 
 struct LazyIndex{T} <: AbstractVector{Any}
     x::T
@@ -100,7 +122,7 @@ of a single scalar value per parameter, an indexable collection should be passed
 parameters will be looped over and `DBInterface.execute` will be called for each. Note that no result sets or cursors are returned
 for any execution, so the usage is mainly intended for bulk INSERT statements.
 """
-function executemany(stmt::Statement, params=())
+function executemany(stmt::Statement, params::StatementParams)
     if !isempty(params)
         param = params[1]
         len = length(param)
@@ -115,7 +137,9 @@ function executemany(stmt::Statement, params=())
     return
 end
 
-executemany(conn::Connection, sql::AbstractString, params=()) = executemany(prepare(conn, sql), params)
+# keyarg version
+executemany(conn::Connection, sql::AbstractString, params::StatementParams) = executemany(prepare(conn, sql), params)
+executemany(conn::Connection, sql::AbstractString; kwargs...) = executemany(conn, sql, kwargs.data)
 
 """
     DBInterface.executemultiple(conn::DBInterface.Connection, sql::AbstractString, [params]) => Cursor-iterator
@@ -127,8 +151,12 @@ This function defines a generic fallback that just returns `(DBInterface.execute
 """
 function executemultiple end
 
-executemultiple(stmt::Statement, params=()) = (DBInterface.execute(stmt, params),)
-executemultiple(conn::Connection, sql::AbstractString, params=()) = executemultiple(prepare(conn, sql), params)
+executemultiple(stmt::Statement, params::StatementParams) = (execute(stmt, params),)
+executemultiple(conn::Connection, sql::AbstractString, params::StatementParams) = executemultiple(prepare(conn, sql), params)
+
+# keyarg version
+executemultiple(stmt::Statement; kwargs...) = executemultiple(stmt, kwargs.data)
+executemultiple(conn::Connection, sql::AbstractString; kwargs...) = executemultiple(conn, sql, kwargs.data)
 
 """
     DBInterface.close!(stmt::DBInterface.Statement)
