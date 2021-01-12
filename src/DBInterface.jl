@@ -1,5 +1,14 @@
 module DBInterface
 
+"""
+Declare the string as written in SQL.
+
+The macro doesn't do any processing of the string.
+"""
+macro sql_str(cmd)
+    cmd
+end
+
 "Database packages should subtype `DBInterface.Connection` which represents a connection to a database"
 abstract type Connection end
 
@@ -57,16 +66,42 @@ macro prepare(getDB, sql)
     end
 end
 
+"""
+    DBInterface.close!(stmt::DBInterface.Statement)
+
+Close a prepared statement so further queries cannot be executed.
+"""
+close!(stmt::Statement)
+
 "Any object that iterates \"rows\", which are objects that are property-accessible and indexable. See `DBInterface.execute` for more details on fetching query results."
 abstract type Cursor end
+
+
+"""
+The container types for positional statement parameters supported by `DBInterface.execute`
+"""
+const PositionalStatementParams = Union{AbstractVector, Tuple}
+
+"""
+The container types for named statement parameters supported by `DBInterface.execute`
+"""
+const NamedStatementParams = Union{AbstractDict, NamedTuple}
+
+"""
+The container types for statement parameters supported by `DBInterface.execute`
+"""
+const StatementParams = Union{PositionalStatementParams, NamedStatementParams}
 
 """
     DBInterface.execute(conn::DBInterface.Connection, sql::AbstractString, [params]) => DBInterface.Cursor
     DBInterface.execute(stmt::DBInterface.Statement, [params]) => DBInterface.Cursor
+    DBInterface.execute(f::Callable, conn::DBInterface.Connection, sql::AbstractString, [params])
 
 Database packages should overload `DBInterface.execute` for a valid, prepared `DBInterface.Statement` subtype (the first method
 signature is defined in DBInterface.jl using `DBInterface.prepare`), which takes an optional `params` argument, which should be
 an indexable collection (`Vector` or `Tuple`) for positional parameters, or a `NamedTuple` for named parameters.
+Alternatively, the parameters could be specified as keyword agruments of `DBInterface.execute`.
+
 `DBInterface.execute` should return a valid `DBInterface.Cursor` object, which is any iterator of "rows",
 which themselves must be property-accessible (i.e. implement `propertynames` and `getproperty` for value access by name),
 and indexable (i.e. implement `length` and `getindex` for value access by index). These "result" objects do not need
@@ -74,11 +109,29 @@ to subtype `DBInterface.Cursor` explicitly as long as they satisfy the interface
 do not return results, an iterator is still expected to be returned that just iterates `nothing`, i.e. an "empty" iterator.
 
 Note that `DBInterface.execute` returns ***a single*** `DBInterface.Cursor`, which represents a single resultset from the database.
-For use-cases involving multiple resultsets from a single query, see `DBInterface.executemultiple`.
+For use-cases involving multiple result-sets from a single query, see `DBInterface.executemultiple`.
+
+If function `f` is provided, `DBInterface.execute` will return the result of applying `f` to the `DBInterface.Cursor` object
+and close the prepared statement upon exit.
 """
 function execute end
 
-execute(conn::Connection, sql::AbstractString, params=()) = execute(prepare(conn, sql), params)
+execute(conn::Connection, sql::AbstractString, params::StatementParams) = execute(prepare(conn, sql), params)
+
+function execute(f::Base.Callable, conn::Connection, sql::AbstractString, params::StatementParams)
+    stmt = prepare(conn, sql)
+    try
+        cursor = execute(stmt, params)
+        return f(cursor)
+    finally
+        close!(stmt)
+    end
+end
+
+# keyarg versions
+execute(stmt::Statement; kwargs...) = execute(stmt, kwargs.data)
+execute(conn::Connection, sql::AbstractString; kwargs...) = execute(conn, sql, kwargs.data)
+execute(f::Base.Callable, conn::Connection, sql::AbstractString; kwargs...) = execute(f, conn, sql, kwargs.data)
 
 struct LazyIndex{T} <: AbstractVector{Any}
     x::T
@@ -100,7 +153,7 @@ of a single scalar value per parameter, an indexable collection should be passed
 parameters will be looped over and `DBInterface.execute` will be called for each. Note that no result sets or cursors are returned
 for any execution, so the usage is mainly intended for bulk INSERT statements.
 """
-function executemany(stmt::Statement, params=())
+function executemany(stmt::Statement, params::StatementParams)
     if !isempty(params)
         param = params[1]
         len = length(param)
@@ -115,7 +168,9 @@ function executemany(stmt::Statement, params=())
     return
 end
 
-executemany(conn::Connection, sql::AbstractString, params=()) = executemany(prepare(conn, sql), params)
+# keyarg version
+executemany(conn::Connection, sql::AbstractString, params::StatementParams) = executemany(prepare(conn, sql), params)
+executemany(conn::Connection, sql::AbstractString; kwargs...) = executemany(conn, sql, kwargs.data)
 
 """
     DBInterface.executemultiple(conn::DBInterface.Connection, sql::AbstractString, [params]) => Cursor-iterator
@@ -127,15 +182,12 @@ This function defines a generic fallback that just returns `(DBInterface.execute
 """
 function executemultiple end
 
-executemultiple(stmt::Statement, params=()) = (DBInterface.execute(stmt, params),)
-executemultiple(conn::Connection, sql::AbstractString, params=()) = executemultiple(prepare(conn, sql), params)
+executemultiple(stmt::Statement, params::StatementParams) = (execute(stmt, params),)
+executemultiple(conn::Connection, sql::AbstractString, params::StatementParams) = executemultiple(prepare(conn, sql), params)
 
-"""
-    DBInterface.close!(stmt::DBInterface.Statement)
-
-Close a prepared statement so further queries cannot be executed.
-"""
-close!(stmt::Statement)
+# keyarg version
+executemultiple(stmt::Statement; kwargs...) = executemultiple(stmt, kwargs.data)
+executemultiple(conn::Connection, sql::AbstractString; kwargs...) = executemultiple(conn, sql, kwargs.data)
 
 """
     DBInterface.lastrowid(x::Cursor) => Int
