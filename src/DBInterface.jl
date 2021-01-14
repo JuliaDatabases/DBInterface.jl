@@ -116,9 +116,9 @@ and close the prepared statement upon exit.
 """
 function execute end
 
-execute(conn::Connection, sql::AbstractString, params::StatementParams) = execute(prepare(conn, sql), params)
+execute(conn::Connection, sql::AbstractString, params) = execute(prepare(conn, sql), params)
 
-function execute(f::Base.Callable, conn::Connection, sql::AbstractString, params::StatementParams)
+function execute(f::Base.Callable, conn::Connection, sql::AbstractString, params)
     stmt = prepare(conn, sql)
     try
         cursor = execute(stmt, params)
@@ -153,7 +153,7 @@ of a single scalar value per parameter, an indexable collection should be passed
 parameters will be looped over and `DBInterface.execute` will be called for each. Note that no result sets or cursors are returned
 for any execution, so the usage is mainly intended for bulk INSERT statements.
 """
-function executemany(stmt::Statement, params::StatementParams)
+function executemany(stmt::Statement, params)
     if !isempty(params)
         param = params[1]
         len = length(param)
@@ -169,7 +169,7 @@ function executemany(stmt::Statement, params::StatementParams)
 end
 
 # keyarg version
-executemany(conn::Connection, sql::AbstractString, params::StatementParams) = executemany(prepare(conn, sql), params)
+executemany(conn::Connection, sql::AbstractString, params) = executemany(prepare(conn, sql), params)
 executemany(conn::Connection, sql::AbstractString; kwargs...) = executemany(conn, sql, kwargs.data)
 
 """
@@ -182,8 +182,8 @@ This function defines a generic fallback that just returns `(DBInterface.execute
 """
 function executemultiple end
 
-executemultiple(stmt::Statement, params::StatementParams) = (execute(stmt, params),)
-executemultiple(conn::Connection, sql::AbstractString, params::StatementParams) = executemultiple(prepare(conn, sql), params)
+executemultiple(stmt::Statement, params) = (execute(stmt, params),)
+executemultiple(conn::Connection, sql::AbstractString, params) = executemultiple(prepare(conn, sql), params)
 
 # keyarg version
 executemultiple(stmt::Statement; kwargs...) = executemultiple(stmt, kwargs.data)
