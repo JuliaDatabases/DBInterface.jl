@@ -96,6 +96,7 @@ const StatementParams = Union{PositionalStatementParams, NamedStatementParams}
     DBInterface.execute(conn::DBInterface.Connection, sql::AbstractString, [params]) => DBInterface.Cursor
     DBInterface.execute(stmt::DBInterface.Statement, [params]) => DBInterface.Cursor
     DBInterface.execute(f::Callable, conn::DBInterface.Connection, sql::AbstractString, [params])
+    DBInterface.execute(f::Callable, stmt::DBInterface.Statement, [params])
 
 Database packages should overload `DBInterface.execute` for a valid, prepared `DBInterface.Statement` subtype (the first method
 signature is defined in DBInterface.jl using `DBInterface.prepare`), which takes an optional `params` argument, which should be
@@ -118,11 +119,19 @@ function execute end
 
 execute(conn::Connection, sql::AbstractString, params) = execute(prepare(conn, sql), params)
 
+function execute(f::Base.Callable, stmt::Statement, params)
+    cursor = execute(stmt, params)
+    try
+       return f(cursor)
+    finally
+        close!(cursor)
+    end
+end
+
 function execute(f::Base.Callable, conn::Connection, sql::AbstractString, params)
     stmt = prepare(conn, sql)
     try
-        cursor = execute(stmt, params)
-        return f(cursor)
+        return execute(f, stmt, params)
     finally
         close!(stmt)
     end
@@ -132,6 +141,7 @@ end
 execute(stmt::Statement; kwargs...) = execute(stmt, kwargs.data)
 execute(conn::Connection, sql::AbstractString; kwargs...) = execute(conn, sql, kwargs.data)
 execute(f::Base.Callable, conn::Connection, sql::AbstractString; kwargs...) = execute(f, conn, sql, kwargs.data)
+execute(f::Base.Callable, stmt::Statement; kwargs...) = execute(f, stmt, kwargs.data)
 
 struct LazyIndex{T} <: AbstractVector{Any}
     x::T
