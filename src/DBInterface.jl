@@ -1,5 +1,7 @@
 module DBInterface
 
+export @sql_str;
+
 """
 Declare the string as written in SQL.
 
