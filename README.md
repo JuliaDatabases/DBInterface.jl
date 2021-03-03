@@ -51,17 +51,8 @@ for result in results
 end
 
 DBInterface.close!(stmt) # close the prepared statement
+DBInterface.close!(conn) # close connection
 ```
 
 ### For Database Package Developers
-See the documentation for the following to understand required types and inheritance, as well as functions to overload:
-```julia
-DBInterface.Connection
-DBInterface.connect
-DBInterface.close!
-DBInterface.Statement
-DBInterface.prepare
-DBInterface.execute
-DBInterface.executemultiple
-DBInterface.lastrowid
-```
+See the [documentation](https://juliadatabases.org/DBInterface.jl/latest/) for expanded details on required interface methods.  
