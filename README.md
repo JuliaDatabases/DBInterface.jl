@@ -1,5 +1,9 @@
 # DBInterface.jl
 
+[![deps](https://juliahub.com/docs/DBInterface/deps.svg)](https://juliahub.com/ui/Packages/DBInterface/bSj9k?t=2)
+[![version](https://juliahub.com/docs/DBInterface/version.svg)](https://juliahub.com/ui/Packages/DBInterface/bSj9k)
+[![pkgeval](https://juliahub.com/docs/DBInterface/pkgeval.svg)](https://juliahub.com/ui/Packages/DBInterface/bSj9k)
+
 ### Purpose
 DBInterface.jl provides interface definitions to allow common database operations to be implemented consistently
 across various database packages.
