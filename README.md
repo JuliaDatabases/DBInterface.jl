@@ -55,4 +55,4 @@ DBInterface.close!(conn) # close connection
 ```
 
 ### For Database Package Developers
-See the [documentation](https://juliadatabases.org/DBInterface.jl/latest/) for expanded details on required interface methods.  
+See the [documentation](https://juliadatabases.org/DBInterface.jl/dev) for expanded details on required interface methods.  
