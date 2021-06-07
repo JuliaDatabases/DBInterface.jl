@@ -140,10 +140,10 @@ function execute(f::Base.Callable, conn::Connection, sql::AbstractString, params
 end
 
 # keyarg versions
-execute(stmt::Statement; kwargs...) = execute(stmt, kwargs.data)
-execute(conn::Connection, sql::AbstractString; kwargs...) = execute(conn, sql, kwargs.data)
-execute(f::Base.Callable, conn::Connection, sql::AbstractString; kwargs...) = execute(f, conn, sql, kwargs.data)
-execute(f::Base.Callable, stmt::Statement; kwargs...) = execute(f, stmt, kwargs.data)
+execute(stmt::Statement; kwargs...) = execute(stmt, values(kwargs))
+execute(conn::Connection, sql::AbstractString; kwargs...) = execute(conn, sql, values(kwargs))
+execute(f::Base.Callable, conn::Connection, sql::AbstractString; kwargs...) = execute(f, conn, sql, values(kwargs))
+execute(f::Base.Callable, stmt::Statement; kwargs...) = execute(f, stmt, values(kwargs))
 
 struct LazyIndex{T} <: AbstractVector{Any}
     x::T
@@ -182,7 +182,7 @@ end
 
 # keyarg version
 executemany(conn::Connection, sql::AbstractString, params) = executemany(prepare(conn, sql), params)
-executemany(conn::Connection, sql::AbstractString; kwargs...) = executemany(conn, sql, kwargs.data)
+executemany(conn::Connection, sql::AbstractString; kwargs...) = executemany(conn, sql, values(kwargs))
 
 """
     DBInterface.executemultiple(conn::DBInterface.Connection, sql::AbstractString, [params]) => Cursor-iterator
@@ -198,8 +198,8 @@ executemultiple(stmt::Statement, params) = (execute(stmt, params),)
 executemultiple(conn::Connection, sql::AbstractString, params) = executemultiple(prepare(conn, sql), params)
 
 # keyarg version
-executemultiple(stmt::Statement; kwargs...) = executemultiple(stmt, kwargs.data)
-executemultiple(conn::Connection, sql::AbstractString; kwargs...) = executemultiple(conn, sql, kwargs.data)
+executemultiple(stmt::Statement; kwargs...) = executemultiple(stmt, values(kwargs))
+executemultiple(conn::Connection, sql::AbstractString; kwargs...) = executemultiple(conn, sql, values(kwargs))
 
 """
     DBInterface.lastrowid(x::Cursor) => Int
