@@ -37,6 +37,14 @@ close!(conn::Connection)
 abstract type Statement end
 
 """
+    DBInterface.getconnection(::DBInterface.Statement)
+
+For a valid `DBInterface.Statement`, return the `DBInterface.Connection` the statement
+is associated with. 
+"""
+function getconnection end
+
+"""
     DBInterface.prepare(conn::DBInterface.Connection, sql::AbstractString) => DBInterface.Statement
     DBInterface.prepare(f::Function, sql::AbstractString) => DBInterface.Statement
 
@@ -145,6 +153,18 @@ execute(conn::Connection, sql::AbstractString; kwargs...) = execute(conn, sql, v
 execute(f::Base.Callable, conn::Connection, sql::AbstractString; kwargs...) = execute(f, conn, sql, values(kwargs))
 execute(f::Base.Callable, stmt::Statement; kwargs...) = execute(f, stmt, values(kwargs))
 
+"""
+    DBInterface.transaction(f, conn::DBInterface.Connection)
+
+Open a transaction against a database connection `conn`, execute a closure `f`,
+then "commit" the transaction after executing the closure function. The default
+definition in DBInterface.jl is a no-op in that it just executes the closure
+function with no transaction. Used in `DBInterface.executemany` to wrap the
+individual execute calls in a transaction since this often leads to much better
+performance in database systems.
+"""
+transaction(f, ::Connection) = f()
+
 struct LazyIndex{T} <: AbstractVector{Any}
     x::T
     i::Int
@@ -170,9 +190,11 @@ function executemany(stmt::Statement, params)
         param = params[1]
         len = length(param)
         all(x -> length(x) == len, params) || throw(ParameterError("parameters provided to `DBInterface.executemany!` do not all have the same number of parameters"))
-        for i = 1:len
-            xargs = LazyIndex(params, i)
-            execute(stmt, xargs)
+        transaction(getconnection(stmt)) do
+            for i = 1:len
+                xargs = LazyIndex(params, i)
+                execute(stmt, xargs)
+            end
         end
     else
         execute(stmt)

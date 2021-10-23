@@ -8,9 +8,11 @@ across various database packages.
 ## Functions
 ```@docs
 DBInterface.connect
+DBInterface.getconnection
 DBInterface.prepare
 DBInterface.@prepare
 DBInterface.execute
+DBInterface.transaction
 DBInterface.executemany
 DBInterface.executemultiple
 DBInterface.close!
