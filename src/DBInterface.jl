@@ -119,7 +119,7 @@ and indexable (i.e. implement `length` and `getindex` for value access by index)
 to subtype `DBInterface.Cursor` explicitly as long as they satisfy the interface. For DDL/DML SQL statements, which typically
 do not return results, an iterator is still expected to be returned that just iterates `nothing`, i.e. an "empty" iterator.
 
-Note that `DBInterface.execute` returns ***a single*** `DBInterface.Cursor`, which represents a single resultset from the database.
+Note that `DBInterface.execute` returns **a single** `DBInterface.Cursor`, which represents a single resultset from the database.
 For use-cases involving multiple result-sets from a single query, see `DBInterface.executemultiple`.
 
 If function `f` is provided, `DBInterface.execute` will return the result of applying `f` to the `DBInterface.Cursor` object
