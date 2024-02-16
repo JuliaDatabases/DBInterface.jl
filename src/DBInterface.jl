@@ -163,7 +163,16 @@ function with no transaction. Used in `DBInterface.executemany` to wrap the
 individual execute calls in a transaction since this often leads to much better
 performance in database systems.
 """
-transaction(f, ::Connection) = f()
+function transaction(f, conn::Connection)
+    execute(conn, "BEGIN TRANSACTION;")
+    try
+        f()
+        execute(conn, "COMMIT;")
+    catch e
+        execute(conn, "ROLLBACK;")
+        rethrow(e)
+    end
+end
 
 struct LazyIndex{T} <: AbstractVector{Any}
     x::T
