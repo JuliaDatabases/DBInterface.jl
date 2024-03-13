@@ -166,8 +166,9 @@ performance in database systems.
 function transaction(f, conn::Connection)
     execute(conn, "BEGIN TRANSACTION;")
     try
-        f()
+        ret = f()
         execute(conn, "COMMIT;")
+        return ret
     catch e
         execute(conn, "ROLLBACK;")
         rethrow(e)
