@@ -111,7 +111,7 @@ const StatementParams = Union{PositionalStatementParams, NamedStatementParams}
 Database packages should overload `DBInterface.execute` for a valid, prepared `DBInterface.Statement` subtype (the first method
 signature is defined in DBInterface.jl using `DBInterface.prepare`), which takes an optional `params` argument, which should be
 an indexable collection (`Vector` or `Tuple`) for positional parameters, or a `NamedTuple` for named parameters.
-Alternatively, the parameters could be specified as keyword agruments of `DBInterface.execute`.
+Alternatively, the parameters could be specified as keyword arguments of `DBInterface.execute`.
 
 `DBInterface.execute` should return a valid `DBInterface.Cursor` object, which is any iterator of "rows",
 which themselves must be property-accessible (i.e. implement `propertynames` and `getproperty` for value access by name),
