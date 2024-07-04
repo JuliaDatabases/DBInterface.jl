@@ -26,7 +26,7 @@ for row in results
     row[1] # access the first column in the row results
 end
 
-# results also implicitly satisfy the Tables.jl `Tables.rows` inteface, so any compatible sink can ingest results
+# results also implicitly satisfy the Tables.jl `Tables.rows` interface, so any compatible sink can ingest results
 df = DataFrame(results)
 CSV.write("results.csv", results)
 
