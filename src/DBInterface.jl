@@ -1,6 +1,9 @@
 module DBInterface
 
 export @sql_str;
+VERSION >= v"1.11.0-DEV.469" && eval(Meta.parse(
+"public connect, close!, getconnection, @prepare, prepare, execute, executemany, executemultiple, transaction, lastrowid, Error, Warning, ParameterError"
+))
 
 """
 Declare the string as written in SQL.
