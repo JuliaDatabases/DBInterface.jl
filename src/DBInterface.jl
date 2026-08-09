@@ -207,6 +207,37 @@ Base.IteratorSize(::Type{<:LazyIndex}) = Base.HasLength()
 Base.size(x::LazyIndex) = (length(x.x),)
 Base.getindex(x::LazyIndex, i::Int) = x.x[i][x.i]
 
+struct LazyNamedIndex{T, K, V} <: AbstractDict{K, V}
+    x::T
+    i::Int
+end
+
+LazyNamedIndex(x::T, i::Int) where {T <: AbstractDict} =
+    LazyNamedIndex{T, Base.keytype(T), eltype(Base.valtype(T))}(x, i)
+
+Base.length(x::LazyNamedIndex) = length(x.x)
+Base.getindex(x::LazyNamedIndex, key) = x.x[key][x.i]
+
+function Base.iterate(x::LazyNamedIndex, state...)
+    result = iterate(x.x, state...)
+    result === nothing && return nothing
+    pair, next_state = result
+    return (pair.first => pair.second[x.i], next_state)
+end
+
+_parameter_collections(params::PositionalStatementParams) = params
+_parameter_collections(params::NamedStatementParams) = values(params)
+
+_parameter_row(params::PositionalStatementParams, i::Int) = LazyIndex(params, i)
+_parameter_row(params::NamedTuple, i::Int) = NamedTuple{keys(params)}(map(x -> x[i], values(params)))
+_parameter_row(params::AbstractDict, i::Int) = LazyNamedIndex(params, i)
+
+function _execute_and_close(stmt::Statement, params)
+    cursor = execute(stmt, params)
+    applicable(close!, cursor) && close!(cursor)
+    return
+end
+
 """
     DBInterface.executemany(conn::DBInterface.Connection, sql::AbstractString, [params]) => Nothing
     DBInterface.executemany(stmt::DBInterface.Statement, [params]) => Nothing
@@ -218,24 +249,32 @@ parameters will be looped over and `DBInterface.execute` will be called for each
 for any execution, so the usage is mainly intended for bulk INSERT statements.
 """
 function executemany(stmt::Statement, params)
-    if !isempty(params)
-        param = params[1]
+    param_collections = _parameter_collections(params)
+    if !isempty(param_collections)
+        param = first(param_collections)
         len = length(param)
-        all(x -> length(x) == len, params) || throw(ParameterError("parameters provided to `DBInterface.executemany!` do not all have the same number of parameters"))
+        all(x -> length(x) == len, param_collections) || throw(ParameterError("parameter collections provided to `DBInterface.executemany` must have equal lengths"))
         transaction(getconnection(stmt)) do
             for i = 1:len
-                xargs = LazyIndex(params, i)
-                execute(stmt, xargs)
+                _execute_and_close(stmt, _parameter_row(params, i))
             end
         end
     else
-        execute(stmt)
+        _execute_and_close(stmt, params)
     end
     return
 end
 
 # keyarg version
-executemany(conn::Connection, sql::AbstractString, params) = executemany(prepare(conn, sql), params)
+function executemany(conn::Connection, sql::AbstractString, params)
+    stmt = prepare(conn, sql)
+    try
+        return executemany(stmt, params)
+    finally
+        close!(stmt)
+    end
+end
+
 executemany(conn::Connection, sql::AbstractString; kwargs...) = executemany(conn, sql, values(kwargs))
 
 """
