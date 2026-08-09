@@ -140,3 +140,82 @@ end
     @test empty_statement.executions == [()]
     @test empty_statement.cursors[1].closed
 end
+
+mutable struct TransactionConnection <: DBInterface.Connection
+    commands::Vector{String}
+    statements::Vector{Any}
+    fail_on::Union{Nothing, String}
+end
+
+TransactionConnection(; fail_on=nothing) = TransactionConnection(String[], Any[], fail_on)
+
+mutable struct TransactionStatement <: DBInterface.Statement
+    connection::TransactionConnection
+    sql::String
+    closed::Bool
+end
+
+mutable struct TransactionCursor <: DBInterface.Cursor
+    closed::Bool
+end
+
+function DBInterface.prepare(connection::TransactionConnection, sql::AbstractString)
+    statement = TransactionStatement(connection, String(sql), false)
+    push!(connection.statements, statement)
+    return statement
+end
+
+DBInterface.getconnection(statement::TransactionStatement) = statement.connection
+DBInterface.close!(statement::TransactionStatement) = statement.closed = true
+DBInterface.close!(cursor::TransactionCursor) = cursor.closed = true
+
+function DBInterface.execute(statement::TransactionStatement, params)
+    connection = statement.connection
+    push!(connection.commands, statement.sql)
+    connection.fail_on == statement.sql && error("$(statement.sql) failed")
+    return TransactionCursor(false)
+end
+
+@testset "transaction" begin
+    connection = TransactionConnection()
+    @test DBInterface.transaction(() -> 42, connection) == 42
+    @test connection.commands == ["BEGIN TRANSACTION;", "COMMIT;"]
+    @test all(statement -> statement.closed, connection.statements)
+
+    body_connection = TransactionConnection()
+    body_error = ErrorException("body failed")
+    caught_error = try
+        DBInterface.transaction(body_connection) do
+            throw(body_error)
+        end
+    catch error
+        error
+    end
+    @test caught_error === body_error
+    @test body_connection.commands == ["BEGIN TRANSACTION;", "ROLLBACK;"]
+    @test all(statement -> statement.closed, body_connection.statements)
+
+    rollback_connection = TransactionConnection(fail_on="ROLLBACK;")
+    rollback_body_error = ErrorException("body failed before rollback")
+    rollback_caught_error = try
+        DBInterface.transaction(rollback_connection) do
+            throw(rollback_body_error)
+        end
+    catch error
+        error
+    end
+    @test rollback_caught_error isa CompositeException
+    @test rollback_caught_error.exceptions[1].ex === rollback_body_error
+    @test occursin("ROLLBACK; failed", sprint(showerror, rollback_caught_error.exceptions[2].ex))
+    @test rollback_connection.commands == ["BEGIN TRANSACTION;", "ROLLBACK;"]
+    @test all(statement -> statement.closed, rollback_connection.statements)
+
+    commit_connection = TransactionConnection(fail_on="COMMIT;")
+    commit_error = try
+        DBInterface.transaction(() -> nothing, commit_connection)
+    catch error
+        error
+    end
+    @test occursin("COMMIT; failed", sprint(showerror, commit_error))
+    @test commit_connection.commands == ["BEGIN TRANSACTION;", "COMMIT;", "ROLLBACK;"]
+end
