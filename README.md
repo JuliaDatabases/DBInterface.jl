@@ -4,59 +4,63 @@
 [![version](https://juliahub.com/docs/DBInterface/version.svg)](https://juliahub.com/ui/Packages/DBInterface/bSj9k)
 [![pkgeval](https://juliahub.com/docs/DBInterface/pkgeval.svg)](https://juliahub.com/ui/Packages/DBInterface/bSj9k)
 
-### Purpose
-DBInterface.jl provides interface definitions to allow common database operations to be implemented consistently
-across various database packages.
+## Purpose
 
-### For Users
-To use DBInterface.jl, select an implementing database package, then utilize the consistent DBInterface.jl interface methods:
+DBInterface.jl defines a small, common interface for Julia database drivers. Select a driver package, then use the `DBInterface` methods against that driver's connection, statement, and result types.
+
+## Basic Use
+
+Use the do-block forms when a connection, statement, or result should be closed at the end of an operation:
+
 ```julia
-conn = DBInterface.connect(T, args...; kw...) # create a connection to a specific database T; required parameters are database-specific
+using DBInterface
 
-stmt = DBInterface.prepare(conn, sql) # prepare a sql statement against the connection; returns a statement object
+DBInterface.connect(Driver.Connection, args...; kwargs...) do conn
+    DBInterface.execute(conn, "SELECT id, name FROM users WHERE id = ?", (42,)) do cursor
+        for row in cursor
+            @show row.id
+            @show row[2]
+        end
+    end
 
-results = DBInterface.execute(stmt) # execute a prepared statement; returns an iterator of rows (property-accessible & indexable)
-
-rowid = DBInterface.lastrowid(results) # get the last row id of an INSERT statement, as supported by the database
-
-# example of using a query resultset
-for row in results
-    @show propertynames(row) # see possible column names of row results
-    row.col1 # access the value of a column named `col1`
-    row[1] # access the first column in the row results
-end
-
-# results also implicitly satisfy the Tables.jl `Tables.rows` interface, so any compatible sink can ingest results
-df = DataFrame(results)
-CSV.write("results.csv", results)
-
-results = DBInterface.execute(conn, sql) # convenience method if statement preparation/re-use isn't needed
-
-stmt = DBInterface.prepare(conn, "INSERT INTO test_table VALUES(?, ?)") # prepare a statement with positional parameters
-
-DBInterface.execute(stmt, [1, 3.14]) # execute the prepared INSERT statement, passing 1 and 3.14 as positional parameters
-
-stmt = DBInterface.prepare(conn, "INSERT INTO test_table VALUES(:col1, :col2)") # prepare a statement with named parameters
-
-DBInterface.execute(stmt, (col1=1, col2=3.14)) # execute the prepared INSERT statement, with 1 and 3.14 as named parameters
-
-DBInterface.executemany(stmt, (col1=[1,2,3,4,5], col2=[3.14, 1.23, 2.34 3.45, 4.56])) # execute the prepared statement multiple times for each set of named parameters; each named parameter must be an indexable collection
-
-results = DBInterface.executemultiple(conn, sql) # where sql is a query that returns multiple resultsets
-
-# first iterate through resultsets
-for result in results
-    # for each resultset, we can iterate through resultset rows
-    for row in result
-        @show propertynames(row)
-        row.col1
-        row[1]
+    DBInterface.prepare(conn, "INSERT INTO users (id, name) VALUES (?, ?)") do stmt
+        DBInterface.execute(_ -> nothing, stmt, (43, "Ada"))
     end
 end
-
-DBInterface.close!(stmt) # close the prepared statement
-DBInterface.close!(conn) # close connection
 ```
 
-### For Database Package Developers
-See the [documentation](https://juliadatabases.org/DBInterface.jl/dev) for expanded details on required interface methods.  
+Rows must support property access by column name and indexing by column position. Result cursors should also satisfy the Tables.jl row-table interface, so Tables.jl-compatible sinks can consume them:
+
+```julia
+df = DBInterface.execute(DataFrame, conn, "SELECT * FROM users")
+DBInterface.execute(cursor -> CSV.write("users.csv", cursor), conn, "SELECT * FROM users")
+```
+
+Use `executemany` for column-oriented bulk parameters. Each parameter collection must have the same length:
+
+```julia
+DBInterface.executemany(
+    conn,
+    "INSERT INTO users (id, name) VALUES (?, ?)",
+    ([1, 2, 3], ["Ada", "Grace", "Katherine"]),
+)
+```
+
+Named parameters can be passed as a `NamedTuple`, an `AbstractDict`, or keywords when the database and driver support named placeholders:
+
+```julia
+DBInterface.execute(conn, "SELECT * FROM users WHERE id = :id", (id=42,))
+DBInterface.execute(conn, "SELECT * FROM users WHERE id = :id"; id=42)
+```
+
+Placeholder syntax is driver-specific. For example, a driver may require `?`, `:name`, `$1`, or another form. One placeholder normally binds one scalar value. A collection does not normally expand into an SQL `IN` list.
+
+## SQL Safety
+
+DBInterface passes SQL text to the driver unchanged. Use bound parameters for untrusted values. Do not interpolate untrusted data into SQL strings. Bound parameters do not quote table names, column names, SQL keywords, or other SQL fragments. Use the driver's identifier-quoting API when an identifier must be dynamic.
+
+The `sql"..."` string macro does not parse, escape, validate, or sanitize SQL.
+
+## Driver Authors
+
+See the [documentation](https://juliadatabases.org/DBInterface.jl/dev) for the required methods, result contract, resource ownership rules, and optional extensions.
