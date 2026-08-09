@@ -293,3 +293,8 @@ DBInterface.close!(statement::ScopedStatement) = statement.closed = true
     @test caught_statement_error === statement_error
     @test statement[].closed
 end
+
+@testset "error display" begin
+    @test sprint(showerror, DBInterface.ParameterError("invalid parameters")) == "invalid parameters"
+    @test sprint(showerror, DBInterface.Error("database error")) == "database error"
+end

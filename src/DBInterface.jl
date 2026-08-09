@@ -373,4 +373,7 @@ struct Error <: Exception
     msg::String
 end
 
+Base.showerror(io::IO, error::ParameterError) = print(io, error.msg)
+Base.showerror(io::IO, error::Error) = print(io, error.msg)
+
 end # module
