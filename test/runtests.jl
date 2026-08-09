@@ -108,7 +108,8 @@ end
 
     named_statement = DBInterface.prepare(connection, "named")
     DBInterface.executemany(named_statement, (id=[1, 2], name=["one", "two"]))
-    @test named_statement.executions == [(id=1, name="one"), (id=2, name="two")]
+    @test collect.(named_statement.executions) == [[1, "one"], [2, "two"]]
+    @test all(params -> params isa AbstractVector, named_statement.executions)
     @test all(cursor -> cursor.closed, named_statement.cursors)
 
     dictionary_statement = DBInterface.prepare(connection, "dictionary")
@@ -129,7 +130,7 @@ end
     DBInterface.executemany(connection, "managed", (id=[1, 2],))
     managed_statement = connection.statements[end]
     @test managed_statement.closed
-    @test managed_statement.executions == [(id=1,), (id=2,)]
+    @test collect.(managed_statement.executions) == [[1], [2]]
 
     @test_throws ErrorException DBInterface.executemany(connection, "fail", (id=[1, 2],))
     failed_statement = connection.statements[end]
@@ -138,7 +139,7 @@ end
 
     nothing_statement = DBInterface.prepare(connection, "nothing")
     DBInterface.executemany(nothing_statement, (id=[1, 2],))
-    @test nothing_statement.executions == [(id=1,), (id=2,)]
+    @test collect.(nothing_statement.executions) == [[1], [2]]
 
     execution_transaction_count[] = 0
     empty_batch_statement = DBInterface.prepare(connection, "empty batch")
