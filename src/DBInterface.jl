@@ -59,21 +59,43 @@ function prepare end
 
 prepare(f::Function, sql::AbstractString) = prepare(f(), sql)
 
-const PREPARED_STMTS = Dict{Symbol, Statement}()
+struct _PreparedStatementCacheEntry
+    connection::Connection
+    sql::String
+    statement::Statement
+end
+
+const PREPARED_STMTS = Dict{Tuple{Module, Symbol}, _PreparedStatementCacheEntry}()
+const PREPARED_STMTS_LOCK = ReentrantLock()
+
+function _cached_prepare(getDB, sql::AbstractString, caller::Module, key::Symbol)
+    connection = getDB()
+    sql_string = String(sql)
+    cache_key = (caller, key)
+    lock(PREPARED_STMTS_LOCK)
+    try
+        entry = get(PREPARED_STMTS, cache_key, nothing)
+        if entry !== nothing && entry.connection === connection && entry.sql == sql_string
+            return entry.statement
+        end
+        statement = prepare(connection, sql_string)
+        PREPARED_STMTS[cache_key] = _PreparedStatementCacheEntry(connection, sql_string, statement)
+        return statement
+    finally
+        unlock(PREPARED_STMTS_LOCK)
+    end
+end
 
 """
     DBInterface.@prepare f sql
 
-Takes a `DBInterface.Connection`-retrieval function `f` and SQL statement `sql` and will return a prepared statement, via usage of `DBInterface.prepare`.
-If the statement has already been prepared, it will be re-used (prepared statements are cached).
+Takes a zero-argument `DBInterface.Connection`-retrieval function `f` and SQL statement `sql` and returns a prepared statement via `DBInterface.prepare`.
+Each call site caches one statement. The cached statement is reused while both the connection object and SQL text remain unchanged.
+The cache is synchronized, but it does not make a connection or statement safe for concurrent use.
 """
 macro prepare(getDB, sql)
     key = gensym()
-    return quote
-        get!(DBInterface.PREPARED_STMTS, $(QuoteNode(key))) do
-            DBInterface.prepare($(esc(getDB)), $sql)
-        end
-    end
+    return :(DBInterface._cached_prepare($(esc(getDB)), $(esc(sql)), $(QuoteNode(__module__)), $(QuoteNode(key))))
 end
 
 """
