@@ -54,3 +54,89 @@ other_cached_statement(connection, sql) = DBInterface.@prepare(() -> connection,
     end
     @test !any(failures)
 end
+
+mutable struct ExecutionConnection <: DBInterface.Connection
+    statements::Vector{Any}
+end
+
+ExecutionConnection() = ExecutionConnection(Any[])
+
+mutable struct ExecutionStatement <: DBInterface.Statement
+    connection::ExecutionConnection
+    sql::String
+    executions::Vector{Any}
+    cursors::Vector{Any}
+    closed::Bool
+end
+
+mutable struct ExecutionCursor <: DBInterface.Cursor
+    closed::Bool
+end
+
+function DBInterface.prepare(connection::ExecutionConnection, sql::AbstractString)
+    statement = ExecutionStatement(connection, String(sql), Any[], Any[], false)
+    push!(connection.statements, statement)
+    return statement
+end
+
+DBInterface.getconnection(statement::ExecutionStatement) = statement.connection
+DBInterface.transaction(f, ::ExecutionConnection) = f()
+DBInterface.close!(statement::ExecutionStatement) = statement.closed = true
+DBInterface.close!(cursor::ExecutionCursor) = cursor.closed = true
+
+function DBInterface.execute(statement::ExecutionStatement, params)
+    push!(statement.executions, params)
+    statement.sql == "fail" && length(statement.executions) == 2 && error("execution failed")
+    statement.sql == "nothing" && return nothing
+    cursor = ExecutionCursor(false)
+    push!(statement.cursors, cursor)
+    return cursor
+end
+
+@testset "executemany" begin
+    connection = ExecutionConnection()
+
+    positional_statement = DBInterface.prepare(connection, "positional")
+    DBInterface.executemany(positional_statement, ([1, 2], [3.0, 4.0]))
+    @test collect.(positional_statement.executions) == [[1, 3.0], [2, 4.0]]
+    @test all(cursor -> cursor.closed, positional_statement.cursors)
+
+    named_statement = DBInterface.prepare(connection, "named")
+    DBInterface.executemany(named_statement, (id=[1, 2], name=["one", "two"]))
+    @test named_statement.executions == [(id=1, name="one"), (id=2, name="two")]
+    @test all(cursor -> cursor.closed, named_statement.cursors)
+
+    dictionary_statement = DBInterface.prepare(connection, "dictionary")
+    DBInterface.executemany(dictionary_statement, Dict(:id => [1, 2], :name => ["one", "two"]))
+    @test Dict.(dictionary_statement.executions) == [
+        Dict(:id => 1, :name => "one"),
+        Dict(:id => 2, :name => "two"),
+    ]
+    @test all(params -> params isa AbstractDict, dictionary_statement.executions)
+
+    invalid_statement = DBInterface.prepare(connection, "invalid")
+    @test_throws DBInterface.ParameterError DBInterface.executemany(
+        invalid_statement,
+        (id=[1, 2], name=["one"]),
+    )
+    @test isempty(invalid_statement.executions)
+
+    DBInterface.executemany(connection, "managed", (id=[1, 2],))
+    managed_statement = connection.statements[end]
+    @test managed_statement.closed
+    @test managed_statement.executions == [(id=1,), (id=2,)]
+
+    @test_throws ErrorException DBInterface.executemany(connection, "fail", (id=[1, 2],))
+    failed_statement = connection.statements[end]
+    @test failed_statement.closed
+    @test failed_statement.cursors[1].closed
+
+    nothing_statement = DBInterface.prepare(connection, "nothing")
+    DBInterface.executemany(nothing_statement, (id=[1, 2],))
+    @test nothing_statement.executions == [(id=1,), (id=2,)]
+
+    empty_statement = DBInterface.prepare(connection, "empty")
+    DBInterface.executemany(empty_statement, ())
+    @test empty_statement.executions == [()]
+    @test empty_statement.cursors[1].closed
+end
