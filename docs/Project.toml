@@ -1,2 +1,6 @@
 [deps]
+DBInterface = "a10d1c49-ce27-4219-8d33-6db1a4562965"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+
+[compat]
+Documenter = "1"
