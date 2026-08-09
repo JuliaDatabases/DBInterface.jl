@@ -16,11 +16,23 @@ abstract type Connection end
 
 """
     DBInterface.connect(DB, args...; kw...) => DBInterface.Connection
+    DBInterface.connect(f::Callable, DB, args...; kw...)
 
 Database packages should overload `DBInterface.connect` for a specific `DB` `DBInterface.Connection` subtype
 that returns a valid, live database connection that can be queried against.
+
+When `f` is provided, the connection is passed to `f`, closed upon exit, and the result of `f` is returned.
 """
 function connect end
+
+function connect(f::Base.Callable, DB, args...; kwargs...)
+    conn = connect(DB, args...; kwargs...)
+    try
+        return f(conn)
+    finally
+        close!(conn)
+    end
+end
 
 # Different `close!` signatures have their own docstrings.
 function close! end
@@ -47,6 +59,7 @@ function getconnection end
 """
     DBInterface.prepare(conn::DBInterface.Connection, sql::AbstractString) => DBInterface.Statement
     DBInterface.prepare(f::Function, sql::AbstractString) => DBInterface.Statement
+    DBInterface.prepare(f::Callable, conn::DBInterface.Connection, sql::AbstractString; kw...)
 
 Database packages should overload `DBInterface.prepare` for a specific `DBInterface.Connection` subtype, that validates and prepares
 a SQL statement given as an `AbstractString` `sql` argument, and returns a `DBInterface.Statement` subtype. It is expected
@@ -54,10 +67,21 @@ that `DBInterface.Statement`s are only valid for the lifetime of the `DBInterfac
 For convenience, users may call `DBInterface.prepare(f::Function, sql)` which first calls `f()` to retrieve a valid `DBInterface.Connection`
 before calling `DBInterface.prepare(conn, sql)`; this allows deferring connection retrieval and thus statement preparation until runtime,
 which is often convenient when building applications.
+
+When both `f` and `conn` are provided, the prepared statement is passed to `f`, closed upon exit, and the result of `f` is returned.
 """
 function prepare end
 
 prepare(f::Function, sql::AbstractString) = prepare(f(), sql)
+
+function prepare(f::Base.Callable, conn::Connection, sql::AbstractString; kwargs...)
+    stmt = prepare(conn, sql; kwargs...)
+    try
+        return f(stmt)
+    finally
+        close!(stmt)
+    end
+end
 
 struct _PreparedStatementCacheEntry
     connection::Connection

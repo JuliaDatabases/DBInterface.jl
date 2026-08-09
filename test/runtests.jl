@@ -219,3 +219,77 @@ end
     @test occursin("COMMIT; failed", sprint(showerror, commit_error))
     @test commit_connection.commands == ["BEGIN TRANSACTION;", "COMMIT;", "ROLLBACK;"]
 end
+
+struct MockDatabase end
+
+mutable struct ScopedConnection <: DBInterface.Connection
+    closed::Bool
+end
+
+const scoped_connections = ScopedConnection[]
+
+function DBInterface.connect(::Type{MockDatabase}; option=false)
+    @test option
+    connection = ScopedConnection(false)
+    push!(scoped_connections, connection)
+    return connection
+end
+
+DBInterface.close!(connection::ScopedConnection) = connection.closed = true
+
+mutable struct ScopedStatement <: DBInterface.Statement
+    connection::ScopedConnection
+    sql::String
+    option::Bool
+    closed::Bool
+end
+
+function DBInterface.prepare(connection::ScopedConnection, sql::AbstractString; option=false)
+    return ScopedStatement(connection, String(sql), option, false)
+end
+
+DBInterface.close!(statement::ScopedStatement) = statement.closed = true
+
+@testset "scoped resources" begin
+    empty!(scoped_connections)
+    result = DBInterface.connect(MockDatabase; option=true) do connection
+        @test !connection.closed
+        return 42
+    end
+    @test result == 42
+    @test scoped_connections[1].closed
+
+    connection_error = ErrorException("connection body failed")
+    caught_connection_error = try
+        DBInterface.connect(MockDatabase; option=true) do connection
+            throw(connection_error)
+        end
+    catch error
+        error
+    end
+    @test caught_connection_error === connection_error
+    @test scoped_connections[2].closed
+
+    connection = ScopedConnection(false)
+    statement = Ref{ScopedStatement}()
+    statement_result = DBInterface.prepare(connection, "SELECT 1"; option=true) do prepared
+        statement[] = prepared
+        @test !prepared.closed
+        @test prepared.option
+        return prepared.sql
+    end
+    @test statement_result == "SELECT 1"
+    @test statement[].closed
+
+    statement_error = ErrorException("statement body failed")
+    caught_statement_error = try
+        DBInterface.prepare(connection, "SELECT 2"; option=true) do prepared
+            statement[] = prepared
+            throw(statement_error)
+        end
+    catch error
+        error
+    end
+    @test caught_statement_error === statement_error
+    @test statement[].closed
+end
