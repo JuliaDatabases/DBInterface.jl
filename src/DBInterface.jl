@@ -266,7 +266,7 @@ _parameter_collections(params::PositionalStatementParams) = params
 _parameter_collections(params::NamedStatementParams) = values(params)
 
 _parameter_row(params::PositionalStatementParams, i::Int) = LazyIndex(params, i)
-_parameter_row(params::NamedTuple, i::Int) = NamedTuple{keys(params)}(map(x -> x[i], values(params)))
+_parameter_row(params::NamedTuple, i::Int) = LazyIndex(values(params), i)
 _parameter_row(params::AbstractDict, i::Int) = LazyNamedIndex(params, i)
 
 function _execute_and_close(stmt::Statement, params)
@@ -298,7 +298,8 @@ Similar in usage to `DBInterface.execute`, but allows passing multiple sets of p
 `params`, like for `DBInterface.execute`, should be an `AbstractVector`, `Tuple`, `NamedTuple`, or `AbstractDict`, but instead
 of a single scalar value per parameter, an indexable collection should be passed for each parameter. By default, each set of
 parameters will be looped over and `DBInterface.execute` will be called for each. Note that no result sets or cursors are returned
-for any execution, so the usage is mainly intended for bulk INSERT statements. Named containers remain named for each execution.
+for any execution, so the usage is mainly intended for bulk INSERT statements. For compatibility, a `NamedTuple` or keyword batch
+is passed to each execution positionally in field order. Use an `AbstractDict` batch when each execution must retain parameter names.
 """
 function executemany(stmt::Statement, params)
     param_collections = _parameter_collections(params)
