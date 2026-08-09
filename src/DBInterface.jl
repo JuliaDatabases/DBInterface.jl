@@ -179,21 +179,31 @@ execute(f::Base.Callable, stmt::Statement; kwargs...) = execute(f, stmt, values(
     DBInterface.transaction(f, conn::DBInterface.Connection)
 
 Open a transaction against a database connection `conn`, execute a closure `f`,
-then "commit" the transaction after executing the closure function. The default
-definition in DBInterface.jl is a no-op in that it just executes the closure
-function with no transaction. Used in `DBInterface.executemany` to wrap the
-individual execute calls in a transaction since this often leads to much better
-performance in database systems.
+then commit the transaction after executing the closure. The default definition
+executes `BEGIN TRANSACTION`, `COMMIT`, and, after an error, `ROLLBACK`. Database
+packages should overload this method when those commands do not match the database's
+transaction behavior. `DBInterface.executemany` uses this method because a transaction
+often makes repeated statements much faster. If both the transaction and its rollback
+fail, a `CompositeException` reports both errors, with the original error first.
 """
 function transaction(f, conn::Connection)
-    execute(conn, "BEGIN TRANSACTION;")
+    _execute_and_close(conn, "BEGIN TRANSACTION;")
     try
         ret = f()
-        execute(conn, "COMMIT;")
+        _execute_and_close(conn, "COMMIT;")
         return ret
-    catch e
-        execute(conn, "ROLLBACK;")
-        rethrow(e)
+    catch transaction_error
+        transaction_backtrace = catch_backtrace()
+        try
+            _execute_and_close(conn, "ROLLBACK;")
+        catch rollback_error
+            rollback_backtrace = catch_backtrace()
+            throw(CompositeException([
+                CapturedException(transaction_error, transaction_backtrace),
+                CapturedException(rollback_error, rollback_backtrace),
+            ]))
+        end
+        rethrow()
     end
 end
 
@@ -236,6 +246,21 @@ function _execute_and_close(stmt::Statement, params)
     cursor = execute(stmt, params)
     applicable(close!, cursor) && close!(cursor)
     return
+end
+
+function _execute_and_close(stmt::Statement)
+    cursor = execute(stmt)
+    applicable(close!, cursor) && close!(cursor)
+    return
+end
+
+function _execute_and_close(conn::Connection, sql::AbstractString)
+    stmt = prepare(conn, sql)
+    try
+        return _execute_and_close(stmt)
+    finally
+        close!(stmt)
+    end
 end
 
 """
