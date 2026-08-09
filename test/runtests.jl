@@ -61,6 +61,8 @@ end
 
 ExecutionConnection() = ExecutionConnection(Any[])
 
+const execution_transaction_count = Ref(0)
+
 mutable struct ExecutionStatement <: DBInterface.Statement
     connection::ExecutionConnection
     sql::String
@@ -80,7 +82,10 @@ function DBInterface.prepare(connection::ExecutionConnection, sql::AbstractStrin
 end
 
 DBInterface.getconnection(statement::ExecutionStatement) = statement.connection
-DBInterface.transaction(f, ::ExecutionConnection) = f()
+function DBInterface.transaction(f, ::ExecutionConnection)
+    execution_transaction_count[] += 1
+    return f()
+end
 DBInterface.close!(statement::ExecutionStatement) = statement.closed = true
 DBInterface.close!(cursor::ExecutionCursor) = cursor.closed = true
 
@@ -134,6 +139,12 @@ end
     nothing_statement = DBInterface.prepare(connection, "nothing")
     DBInterface.executemany(nothing_statement, (id=[1, 2],))
     @test nothing_statement.executions == [(id=1,), (id=2,)]
+
+    execution_transaction_count[] = 0
+    empty_batch_statement = DBInterface.prepare(connection, "empty batch")
+    DBInterface.executemany(empty_batch_statement, (id=Int[],))
+    @test isempty(empty_batch_statement.executions)
+    @test execution_transaction_count[] == 0
 
     empty_statement = DBInterface.prepare(connection, "empty")
     DBInterface.executemany(empty_statement, ())

@@ -306,6 +306,7 @@ function executemany(stmt::Statement, params)
         param = first(param_collections)
         len = length(param)
         all(x -> length(x) == len, param_collections) || throw(ParameterError("parameter collections provided to `DBInterface.executemany` must have equal lengths"))
+        len == 0 && return
         transaction(getconnection(stmt)) do
             for i = 1:len
                 _execute_and_close(stmt, _parameter_row(params, i))
