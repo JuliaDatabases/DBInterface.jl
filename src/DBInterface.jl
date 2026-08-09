@@ -5,7 +5,7 @@ export @sql_str;
 """
 Declare the string as written in SQL.
 
-The macro doesn't do any processing of the string.
+The macro does not parse, escape, validate, or sanitize the string.
 """
 macro sql_str(cmd)
     cmd
@@ -154,22 +154,25 @@ const StatementParams = Union{PositionalStatementParams, NamedStatementParams}
     DBInterface.execute(f::Callable, conn::DBInterface.Connection, sql::AbstractString, [params])
     DBInterface.execute(f::Callable, stmt::DBInterface.Statement, [params])
 
-Database packages should overload `DBInterface.execute` for a valid, prepared `DBInterface.Statement` subtype (the first method
-signature is defined in DBInterface.jl using `DBInterface.prepare`), which takes an optional `params` argument, which should be
-an indexable collection (`Vector` or `Tuple`) for positional parameters, or a `NamedTuple` for named parameters.
+Database packages should overload `DBInterface.execute` for a valid, prepared `DBInterface.Statement` subtype (the connection
+signature is defined in DBInterface.jl using `DBInterface.prepare`), which takes an optional `params` argument. Parameters should be
+an indexable collection (`AbstractVector` or `Tuple`) for positional parameters, or a `NamedTuple` or `AbstractDict` for named parameters.
 Alternatively, the parameters could be specified as keyword arguments of `DBInterface.execute`.
+
+Placeholder syntax and named-parameter support are driver-specific. Each placeholder normally binds one scalar value. DBInterface
+does not parse or sanitize SQL, and bound parameters cannot replace identifiers, keywords, or other SQL fragments.
 
 `DBInterface.execute` should return a valid `DBInterface.Cursor` object, which is any iterator of "rows",
 which themselves must be property-accessible (i.e. implement `propertynames` and `getproperty` for value access by name),
 and indexable (i.e. implement `length` and `getindex` for value access by index). These "result" objects do not need
-to subtype `DBInterface.Cursor` explicitly as long as they satisfy the interface. For DDL/DML SQL statements, which typically
-do not return results, an iterator is still expected to be returned that just iterates `nothing`, i.e. an "empty" iterator.
+to subtype `DBInterface.Cursor` explicitly as long as they satisfy the interface and implement `DBInterface.close!`. For DDL/DML
+SQL statements, which typically do not return results, an empty iterator is still expected.
 
 Note that `DBInterface.execute` returns **a single** `DBInterface.Cursor`, which represents a single resultset from the database.
 For use-cases involving multiple result-sets from a single query, see `DBInterface.executemultiple`.
 
-If function `f` is provided, `DBInterface.execute` will return the result of applying `f` to the `DBInterface.Cursor` object
-and close the prepared statement upon exit.
+If function `f` is provided, `DBInterface.execute` returns the result of applying `f` to the cursor and closes the cursor upon exit.
+The connection form also closes the statement that it prepares internally.
 """
 function execute end
 
@@ -292,10 +295,10 @@ end
     DBInterface.executemany(stmt::DBInterface.Statement, [params]) => Nothing
 
 Similar in usage to `DBInterface.execute`, but allows passing multiple sets of parameters to be executed in sequence.
-`params`, like for `DBInterface.execute`, should be an indexable collection (`Vector` or `Tuple`) or `NamedTuple`, but instead
+`params`, like for `DBInterface.execute`, should be an `AbstractVector`, `Tuple`, `NamedTuple`, or `AbstractDict`, but instead
 of a single scalar value per parameter, an indexable collection should be passed for each parameter. By default, each set of
 parameters will be looped over and `DBInterface.execute` will be called for each. Note that no result sets or cursors are returned
-for any execution, so the usage is mainly intended for bulk INSERT statements.
+for any execution, so the usage is mainly intended for bulk INSERT statements. Named containers remain named for each execution.
 """
 function executemany(stmt::Statement, params)
     param_collections = _parameter_collections(params)
