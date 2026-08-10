@@ -133,6 +133,15 @@ end
         Dict(:id => 2, :name => "two"),
     ]
     @test all(params -> params isa AbstractDict, dictionary_statement.executions)
+    dictionary_row = dictionary_statement.executions[1]
+    @test haskey(dictionary_row, :id)
+    @test !haskey(dictionary_row, :missing)
+    @test get(dictionary_row, :name, "unbound") == "one"
+    @test get(dictionary_row, :missing, "unbound") == "unbound"
+    @test get(() -> "unbound", dictionary_row, :name) == "one"
+    @test get(() -> "unbound", dictionary_row, :missing) == "unbound"
+    @test :id in keys(dictionary_row)
+    @test eltype(keys(dictionary_row)) === Symbol
 
     invalid_statement = DBInterface.prepare(connection, "invalid")
     @test_throws DBInterface.ParameterError DBInterface.executemany(

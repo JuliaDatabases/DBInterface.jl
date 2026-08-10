@@ -262,6 +262,9 @@ LazyNamedIndex(x::T, i::Int) where {T <: AbstractDict} =
 
 Base.length(x::LazyNamedIndex) = length(x.x)
 Base.getindex(x::LazyNamedIndex, key) = x.x[key][x.i]
+Base.haskey(x::LazyNamedIndex, key) = haskey(x.x, key)
+Base.get(x::LazyNamedIndex, key, default) = haskey(x.x, key) ? x.x[key][x.i] : default
+Base.get(f::Base.Callable, x::LazyNamedIndex, key) = haskey(x.x, key) ? x.x[key][x.i] : f()
 
 function Base.iterate(x::LazyNamedIndex, state...)
     result = iterate(x.x, state...)
