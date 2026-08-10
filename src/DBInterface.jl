@@ -2,7 +2,7 @@ module DBInterface
 
 export @sql_str;
 VERSION >= v"1.11.0-DEV.469" && eval(Meta.parse(
-"public connect, close!, getconnection, @prepare, prepare, execute, executemany, executemultiple, transaction, lastrowid, Error, Warning, ParameterError"
+"public Connection, Statement, Cursor, PositionalStatementParams, NamedStatementParams, StatementParams, connect, close!, getconnection, @prepare, prepare, execute, executemany, executemultiple, transaction, lastrowid, Error, Warning, ParameterError"
 ))
 
 """
