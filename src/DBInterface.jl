@@ -84,12 +84,11 @@ function prepare(f::Base.Callable, conn::Connection, sql::AbstractString; kwargs
 end
 
 struct _PreparedStatementCacheEntry
-    connection::Connection
     sql::String
     statement::Statement
 end
 
-const PREPARED_STMTS = Dict{Tuple{Module, Symbol}, _PreparedStatementCacheEntry}()
+const PREPARED_STMTS = Dict{Tuple{Module, Symbol}, IdDict{Connection, _PreparedStatementCacheEntry}}()
 const PREPARED_STMTS_LOCK = ReentrantLock()
 
 function _cached_prepare(getDB, sql::AbstractString, caller::Module, key::Symbol)
@@ -98,12 +97,19 @@ function _cached_prepare(getDB, sql::AbstractString, caller::Module, key::Symbol
     cache_key = (caller, key)
     lock(PREPARED_STMTS_LOCK)
     try
-        entry = get(PREPARED_STMTS, cache_key, nothing)
-        if entry !== nothing && entry.connection === connection && entry.sql == sql_string
+        entries = get!(PREPARED_STMTS, cache_key) do
+            IdDict{Connection, _PreparedStatementCacheEntry}()
+        end
+        entry = get(entries, connection, nothing)
+        if entry !== nothing && entry.sql == sql_string
             return entry.statement
         end
+        if entry !== nothing
+            delete!(entries, connection)
+            close!(entry.statement)
+        end
         statement = prepare(connection, sql_string)
-        PREPARED_STMTS[cache_key] = _PreparedStatementCacheEntry(connection, sql_string, statement)
+        entries[connection] = _PreparedStatementCacheEntry(sql_string, statement)
         return statement
     finally
         unlock(PREPARED_STMTS_LOCK)
@@ -114,7 +120,9 @@ end
     DBInterface.@prepare f sql
 
 Takes a zero-argument `DBInterface.Connection`-retrieval function `f` and SQL statement `sql` and returns a prepared statement via `DBInterface.prepare`.
-Each call site caches one statement. The cached statement is reused while both the connection object and SQL text remain unchanged.
+Each call site caches one statement per connection object. A statement is reused while its SQL text remains unchanged. If the SQL changes,
+the old statement for that connection is closed and replaced.
+Cached entries are retained, so use this macro with a bounded set of long-lived connection objects.
 The cache is synchronized, but it does not make a connection or statement safe for concurrent use.
 """
 macro prepare(getDB, sql)

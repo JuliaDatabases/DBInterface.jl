@@ -12,16 +12,18 @@ end
 mutable struct MockStatement <: DBInterface.Statement
     connection::MockConnection
     sql::String
+    closed::Bool
 end
 
 const prepare_count = Ref(0)
 
 function DBInterface.prepare(connection::MockConnection, sql::AbstractString)
     prepare_count[] += 1
-    return MockStatement(connection, String(sql))
+    return MockStatement(connection, String(sql), false)
 end
 
 DBInterface.getconnection(statement::MockStatement) = statement.connection
+DBInterface.close!(statement::MockStatement) = statement.closed = true
 
 cached_statement(connection, sql) = DBInterface.@prepare(() -> connection, sql)
 other_cached_statement(connection, sql) = DBInterface.@prepare(() -> connection, sql)
@@ -38,10 +40,14 @@ other_cached_statement(connection, sql) = DBInterface.@prepare(() -> connection,
     second_statement = cached_statement(second_connection, "SELECT 1")
     @test second_statement.connection === second_connection
     @test second_statement !== first_statement
+    @test !first_statement.closed
 
     changed_sql_statement = cached_statement(second_connection, "SELECT 2")
     @test changed_sql_statement.sql == "SELECT 2"
     @test changed_sql_statement !== second_statement
+    @test second_statement.closed
+
+    @test cached_statement(first_connection, "SELECT 1") === first_statement
 
     @test other_cached_statement(second_connection, "SELECT 2") !== changed_sql_statement
 
@@ -53,6 +59,14 @@ other_cached_statement(connection, sql) = DBInterface.@prepare(() -> connection,
         failures[i] = statement.connection !== connections[i] || statement.sql != sql
     end
     @test !any(failures)
+
+    pooled_prepare_count = prepare_count[]
+    Threads.@threads for i in eachindex(connections)
+        statement = cached_statement(connections[i], "SELECT $i")
+        failures[i] = statement.connection !== connections[i] || statement.sql != "SELECT $i"
+    end
+    @test !any(failures)
+    @test prepare_count[] == pooled_prepare_count
 end
 
 mutable struct ExecutionConnection <: DBInterface.Connection
