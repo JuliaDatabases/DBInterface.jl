@@ -313,7 +313,8 @@ Similar in usage to `DBInterface.execute`, but allows passing multiple sets of p
 of a single scalar value per parameter, an indexable collection should be passed for each parameter. By default, each set of
 parameters will be looped over and `DBInterface.execute` will be called for each. Note that no result sets or cursors are returned
 for any execution, so the usage is mainly intended for bulk INSERT statements. For compatibility, a `NamedTuple` or keyword batch
-is passed to each execution positionally in field order. Use an `AbstractDict` batch when each execution must retain parameter names.
+is passed to each execution positionally in field order. Both connection and prepared-statement forms accept keyword batches.
+Use an `AbstractDict` batch when each execution must retain parameter names.
 """
 function executemany(stmt::Statement, params)
     param_collections = _parameter_collections(params)
@@ -343,6 +344,7 @@ function executemany(conn::Connection, sql::AbstractString, params)
     end
 end
 
+executemany(stmt::Statement; kwargs...) = executemany(stmt, values(kwargs))
 executemany(conn::Connection, sql::AbstractString; kwargs...) = executemany(conn, sql, values(kwargs))
 
 """
