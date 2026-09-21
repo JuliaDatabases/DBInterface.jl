@@ -126,6 +126,23 @@ end
     @test all(params -> params isa AbstractVector, named_statement.executions)
     @test all(cursor -> cursor.closed, named_statement.cursors)
 
+    keyword_statement = DBInterface.prepare(connection, "keywords")
+    DBInterface.executemany(keyword_statement; id=[1, 2], name=["one", "two"])
+    @test collect.(keyword_statement.executions) == [[1, "one"], [2, "two"]]
+    @test all(cursor -> cursor.closed, keyword_statement.cursors)
+    @test !keyword_statement.closed
+    @test_throws DBInterface.ParameterError DBInterface.executemany(keyword_statement; id=[1, 2], name=["one"])
+    @test length(keyword_statement.executions) == 2
+    DBInterface.executemany(keyword_statement; id=Int[], name=String[])
+    @test length(keyword_statement.executions) == 2
+
+    no_params_statement = DBInterface.prepare(connection, "no parameters")
+    DBInterface.executemany(no_params_statement)
+    @test length(no_params_statement.executions) == 1
+    @test isempty(only(no_params_statement.executions))
+    @test only(no_params_statement.cursors).closed
+    @test !no_params_statement.closed
+
     dictionary_statement = DBInterface.prepare(connection, "dictionary")
     DBInterface.executemany(dictionary_statement, Dict(:id => [1, 2], :name => ["one", "two"]))
     @test Dict.(dictionary_statement.executions) == [
