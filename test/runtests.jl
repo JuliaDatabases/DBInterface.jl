@@ -105,11 +105,31 @@ DBInterface.close!(cursor::ExecutionCursor) = cursor.closed = true
 
 function DBInterface.execute(statement::ExecutionStatement, params)
     push!(statement.executions, params)
+    statement.sql == "fail immediately" && error("execution failed")
     statement.sql == "fail" && length(statement.executions) == 2 && error("execution failed")
     statement.sql == "nothing" && return nothing
     cursor = ExecutionCursor(false)
     push!(statement.cursors, cursor)
     return cursor
+end
+
+@testset "connection execution ownership" begin
+    for execute in (DBInterface.execute, DBInterface.executemultiple)
+        successful_connection = ExecutionConnection()
+        execute(successful_connection, "successful", ())
+        successful_statement = only(successful_connection.statements)
+        @test !successful_statement.closed
+        DBInterface.close!(successful_statement)
+
+        failed_connection = ExecutionConnection()
+        @test_throws ErrorException execute(failed_connection, "fail immediately", ())
+        @test only(failed_connection.statements).closed
+
+        caller_statement = DBInterface.prepare(ExecutionConnection(), "fail immediately")
+        @test_throws ErrorException execute(caller_statement, ())
+        @test !caller_statement.closed
+        DBInterface.close!(caller_statement)
+    end
 end
 
 @testset "executemany" begin
