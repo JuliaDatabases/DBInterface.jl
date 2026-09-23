@@ -184,10 +184,19 @@ For use-cases involving multiple result-sets from a single query, see `DBInterfa
 
 If function `f` is provided, `DBInterface.execute` returns the result of applying `f` to the cursor and closes the cursor upon exit.
 The connection form also closes the statement that it prepares internally.
+Without `f`, the connection form closes its prepared statement if execution throws before returning a cursor.
 """
 function execute end
 
-execute(conn::Connection, sql::AbstractString, params) = execute(prepare(conn, sql), params)
+function execute(conn::Connection, sql::AbstractString, params)
+    stmt = prepare(conn, sql)
+    try
+        return execute(stmt, params)
+    catch
+        close!(stmt)
+        rethrow()
+    end
+end
 
 function execute(f::Base.Callable, stmt::Statement, params)
     cursor = execute(stmt, params)
@@ -354,11 +363,20 @@ executemany(conn::Connection, sql::AbstractString; kwargs...) = executemany(conn
 Some databases allow returning multiple resultsets from a "single" query (typically semi-colon (`;`) separated statements, or from calling stored procedures).
 This function takes the exact same arguments as `DBInterface.execute`, but instead of returning a single `Cursor`, it returns an iterator of `Cursor`s.
 This function defines a generic fallback that just returns `(DBInterface.execute(stmt, params),)`, a length-1 tuple for a single `Cursor` resultset.
+The connection form closes its prepared statement if execution throws before returning the cursor iterator.
 """
 function executemultiple end
 
 executemultiple(stmt::Statement, params) = (execute(stmt, params),)
-executemultiple(conn::Connection, sql::AbstractString, params) = executemultiple(prepare(conn, sql), params)
+function executemultiple(conn::Connection, sql::AbstractString, params)
+    stmt = prepare(conn, sql)
+    try
+        return executemultiple(stmt, params)
+    catch
+        close!(stmt)
+        rethrow()
+    end
+end
 
 # keyarg version
 executemultiple(stmt::Statement; kwargs...) = executemultiple(stmt, values(kwargs))
