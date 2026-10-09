@@ -1,0 +1,10 @@
+# This file is machine-generated - editing it directly is not advised
+
+julia_version = "1.12.6"
+manifest_format = "2.0"
+project_hash = "fe3bb3c2dcaf96b1d05633777a41c4fc2a9fed52"
+
+[[deps.DBInterface]]
+path = "."
+uuid = "a10d1c49-ce27-4219-8d33-6db1a4562965"
+version = "2.7.0"
